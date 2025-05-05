@@ -3,6 +3,7 @@
 
 一个基于Flask的Docker容器服务，支持动态子文件夹管理和随机图片展示。当访问`/子文件夹名称`时，将随机重定向到该文件夹下的任意图片文件。
 
+Demo:hrandom-image-api.bakacookie520.top/pc
 
 ## 功能特性
 
