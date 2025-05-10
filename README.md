@@ -45,10 +45,10 @@ random-image-api.bakacookie520.top/pc
 
 ### 如何使用？  
 
-部署项目后，无论您使用的是脚本还是容器，请找到映射出的（或目录内的）images文件夹，在里边再次添加子目录（比如pc），访问IP:50721/pc即可在pc这个文件夹内进行随即图片  
+部署项目后，无论您使用的是脚本还是容器，请找到映射出的（或目录内的）images文件夹，在里边再次添加子目录（比如pc），访问IP:50721/pc即可在pc这个文件夹内进行随机图片  
 
-![Demo](https://alist.bakacookie520.top/d/123/%E5%9B%BE%E5%BA%8A/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-05-10%20081825.png?sign=3gPJ0_hDG3PXdKH4P4ahoBzTQvfJB-n-lM_2XCgildM=:0)
-![Demo](https://alist.bakacookie520.top/d/123/%E5%9B%BE%E5%BA%8A/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-05-10%20081933.png?sign=LCGsdYVvgrYP_DqL-TjVxwm6RiU4F741D1xk7oMQyog=:0)
+![Demo](https://vip.123pan.cn/1815812033/yk6baz03t0n000d7w33gztylj6ousn5aDIYPAIYPDqawDvxPAdQOAY==.png)
+![Demo](https://vip.123pan.cn/1815812033/yk6baz03t0l000d7w33fd6idz4tm1327DIYPAIYPDqawDvxPAdQOAY==.png)
  
 
   
