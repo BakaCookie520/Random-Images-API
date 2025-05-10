@@ -13,7 +13,7 @@ random-image-api.bakacookie520.top/pc
 ✅ 支持常见图片格式（PNG/JPG/JPEG/GIF/WEBP）  
 ✅ 实时文件更新（无需重启服务）  
 ✅ 随机图片重定向  
-✅ 一个服务部署多个子目录
+✅ 一个服务部署多个API
 
 ### 前置要求
 - Docker 20.10+
@@ -37,16 +37,13 @@ random-image-api.bakacookie520.top/pc
     -v $(pwd)/images:/app/images \
     --name my-image-server \
     ria:latest
-  
-  (3)添加目录及图片
-    
-    请在宿主机的images文件夹中添加子文件夹，并添加图片
-    示例：若您添加了 example 文件夹，访问 域名/example 时会自动跳转到该文件夹下的一张图片
+
   
 2.使用脚本  
-  请确保您已安装Python环境  
+
   python app.py  
-  使用方法同上  
+ 
+
   
 
 
