@@ -15,7 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整 Git 历史以生成版本号
+          fetch-depth: 0
+
+      # 新增步骤：强制转为小写仓库路径
+      - name: Normalize repo name to lowercase
+        id: lowercase-repo
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_LOWER=$REPO_LOWER" >> $GITHUB_OUTPUT
 
       - name: Generate Dynamic Version
         id: version
@@ -39,12 +46,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 修改镜像名称：使用小写路径
       - name: Build and Push Docker Image
         run: |
-          docker build -t ghcr.io/${{ github.repository }}:latest .
-          docker tag ghcr.io/${{ github.repository }}:latest ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
-          docker push ghcr.io/${{ github.repository }}:latest
-          docker push ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
+          docker build -t ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:latest .
+          docker tag ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:latest ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.version.outputs.VERSION }}
+          docker push ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:latest
+          docker push ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.version.outputs.VERSION }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
