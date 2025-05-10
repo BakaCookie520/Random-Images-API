@@ -28,7 +28,7 @@ jobs:
       id: create_release
       uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: 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  # 使用个人访问令牌
+        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}  # 使用个人访问令牌
       with:
         tag_name: ${{ github.sha }}
         release_name: Release ${{ github.sha }}
