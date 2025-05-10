@@ -17,14 +17,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 将仓库名称转为小写（关键修复）
+      # 仓库名称转小写
       - name: Normalize repo name
         id: lowercase-repo
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "REPO_LOWER=$REPO_LOWER" >> $GITHUB_OUTPUT
 
-      # 生成动态版本和时间戳（修复时间问题）
+      # 生成元数据（修复时间问题）
       - name: Generate Metadata
         id: metadata
         run: |
@@ -49,20 +49,23 @@ jobs:
         run: |
           docker build -t ${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.metadata.outputs.VERSION }} .
 
-      # 导出镜像为 tar 文件
+      # 导出为 tar 文件
       - name: Export Docker Image
         run: |
           mkdir -p ./docker-images
-          docker save ${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.metadata.outputs.VERSION }} > ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
+          docker save ${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.metadata.outputs.VERSION }} -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
           ls -lh ./docker-images/
 
-      # 推送镜像到 GHCR
-      - name: Push to GHCR
+      # 登录 GHCR（关键修复步骤分离）
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 推送镜像到 GHCR
+      - name: Push to GHCR
         run: |
           docker tag ${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.metadata.outputs.VERSION }} ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.metadata.outputs.VERSION }}
           docker push ghcr.io/${{ steps.lowercase-repo.outputs.REPO_LOWER }}:${{ steps.metadata.outputs.VERSION }}
@@ -75,13 +78,12 @@ jobs:
           name: "Release ${{ steps.metadata.outputs.VERSION }}"
           body: |
             ### 构建信息
-            - **版本号**: ${{ steps.metadata.outputs.VERSION }}
-            - **构建时间**: ${{ steps.metadata.outputs.BUILD_DATE }}
-            - **提交哈希**: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            - **版本**: ${{ steps.metadata.outputs.VERSION }}
+            - **时间**: ${{ steps.metadata.outputs.BUILD_DATE }}
+            - **提交**: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
 
-            ### 镜像获取方式
-            #### 从 Release 下载
-            直接下载附件中的 `.tar` 文件，使用以下命令加载：
+            ### 镜像使用
+            #### 从附件加载
             ```bash
             docker load -i image-${{ steps.metadata.outputs.VERSION }}.tar
             ```
