@@ -22,6 +22,11 @@ random-image-api.bakacookie520.top/pc
 
 ## 快速开始
 
+我们推荐您使用雨云一键部署
+[![通过雨云一键部署](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-cn.svg)](https://app.rainyun.com/apps/rca/store/5?ref=543098)
+
+[![Deploy on RainYun](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-en.svg)](https://app.rainyun.com/apps/rca/store/5?ref=543098)
+
 ### 从Release下载Docker镜像或者脚本压缩包
 
 1.使用Docker
