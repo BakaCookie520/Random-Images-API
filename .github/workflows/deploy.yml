@@ -14,22 +14,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # 生成元数据（时间戳+短SHA）
+      # 关键修复：强制转为小写的仓库拥有者名称
+      - name: Lowercase Repository Owner
+        id: lowercase-owner
+        run: |
+          REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_OWNER_LOWER=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT
+
+      # 生成元数据
       - name: Generate Metadata
         id: metadata
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
-          
           echo "VERSION=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "TAG_NAME=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_OUTPUT
 
-      # 创建 Git 标签
       - name: Create Tag
         run: |
           git config --global user.name "GitHub Actions"
@@ -37,17 +40,16 @@ jobs:
           git tag -a "${{ steps.metadata.outputs.TAG_NAME }}" -m "Auto release"
           git push origin "${{ steps.metadata.outputs.TAG_NAME }}"
 
-      # 构建 Docker 镜像（关键修改：固定镜像名）
+      # 构建镜像（固定名称）
       - name: Build Docker Image
         run: |
           docker build -t random-images-api:latest -t random-images-api:${{ steps.metadata.outputs.VERSION }} .
 
-      # 导出为 tar 文件（使用版本标签）
+      # 导出 tar 文件
       - name: Export Docker Image
         run: |
           mkdir -p ./docker-images
           docker save random-images-api:${{ steps.metadata.outputs.VERSION }} -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
-          ls -lh ./docker-images/
 
       # 登录 GHCR
       - name: Login to GHCR
@@ -57,41 +59,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 推送镜像到 GHCR（固定仓库路径）
+      # 关键修复：使用小写的镜像路径
       - name: Push to GHCR
         run: |
-          # 给镜像添加 GHCR 前缀并推送
-          docker tag random-images-api:latest ghcr.io/${{ github.repository_owner }}/random-images-api:latest
-          docker tag random-images-api:${{ steps.metadata.outputs.VERSION }} ghcr.io/${{ github.repository_owner }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
+          # 使用小写的仓库路径
+          GHCR_IMAGE="ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api"
           
-          docker push ghcr.io/${{ github.repository_owner }}/random-images-api:latest
-          docker push ghcr.io/${{ github.repository_owner }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
+          docker tag random-images-api:latest $GHCR_IMAGE:latest
+          docker tag random-images-api:${{ steps.metadata.outputs.VERSION }} $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
+          
+          docker push $GHCR_IMAGE:latest
+          docker push $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
 
-      # 创建 Release 并附加 tar 文件
+      # 创建 Release
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.metadata.outputs.TAG_NAME }}
           name: "Release ${{ steps.metadata.outputs.VERSION }}"
           body: |
-            ### 构建信息
-            - **本地镜像名**: `random-images-api:latest`
-            - **GHCR 镜像**: `ghcr.io/${{ github.repository_owner }}/random-images-api:${{ steps.metadata.outputs.VERSION }}`
+            ### 镜像信息
+            - **本地镜像**: `random-images-api:latest`
+            - **GHCR 镜像**: `ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}`
             - **构建时间**: ${{ steps.metadata.outputs.BUILD_DATE }}
-
-            ### 镜像使用
-            #### 从附件加载
-            ```bash
-            docker load -i image-${{ steps.metadata.outputs.VERSION }}.tar
-            ```
-
-            #### 从 GHCR 拉取
-            ```bash
-            docker pull ghcr.io/${{ github.repository_owner }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
-            ```
           files: |
             docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
