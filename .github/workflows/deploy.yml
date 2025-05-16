@@ -38,14 +38,18 @@ jobs:
           git tag -a "${{ steps.metadata.outputs.TAG_NAME }}" -m "Auto release"
           git push origin "${{ steps.metadata.outputs.TAG_NAME }}"
 
+      # 关键修改：始终构建 latest + 动态版本双标签
       - name: Build Docker Image
         run: |
-          docker build -t random-images-api:latest -t random-images-api:${{ steps.metadata.outputs.VERSION }} .
+          docker build \
+            -t random-images-api:latest \
+            -t random-images-api:${{ steps.metadata.outputs.VERSION }} .
 
       - name: Export Docker Image
         run: |
           mkdir -p ./docker-images
-          docker save random-images-api:${{ steps.metadata.outputs.VERSION }} -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
+          docker save random-images-api:${{ steps.metadata.outputs.VERSION }} \
+            -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -54,11 +58,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 关键修改：固定推送 latest 标签
       - name: Push to GHCR
         run: |
           GHCR_IMAGE="ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api"
+          
+          # 推送双标签
           docker tag random-images-api:latest $GHCR_IMAGE:latest
           docker tag random-images-api:${{ steps.metadata.outputs.VERSION }} $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
+          
           docker push $GHCR_IMAGE:latest
           docker push $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
 
@@ -81,6 +89,10 @@ jobs:
 
             #### 从 GHCR 拉取
             ```bash
+            # 最新稳定版
+            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
+
+            # 本次特定版本
             docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
             ```
           files: |
