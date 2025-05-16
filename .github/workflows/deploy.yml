@@ -15,14 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 关键修复：强制转为小写的仓库拥有者名称
+      # 强制转为小写的仓库拥有者名称
       - name: Lowercase Repository Owner
         id: lowercase-owner
         run: |
           REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "REPO_OWNER_LOWER=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT
 
-      # 生成元数据
+      # 生成元数据（含构建时间）
       - name: Generate Metadata
         id: metadata
         run: |
@@ -40,18 +40,18 @@ jobs:
           git tag -a "${{ steps.metadata.outputs.TAG_NAME }}" -m "Auto release"
           git push origin "${{ steps.metadata.outputs.TAG_NAME }}"
 
-      # 构建镜像（固定名称）
+      # 构建带双标签的镜像
       - name: Build Docker Image
         run: |
           docker build -t random-images-api:latest -t random-images-api:${{ steps.metadata.outputs.VERSION }} .
 
-      # 导出 tar 文件
+      # 导出tar文件
       - name: Export Docker Image
         run: |
           mkdir -p ./docker-images
           docker save random-images-api:${{ steps.metadata.outputs.VERSION }} -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
 
-      # 登录 GHCR
+      # 登录GHCR
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -59,10 +59,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 关键修复：使用小写的镜像路径
+      # 推送镜像（小写路径）
       - name: Push to GHCR
         run: |
-          # 使用小写的仓库路径
           GHCR_IMAGE="ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api"
           
           docker tag random-images-api:latest $GHCR_IMAGE:latest
@@ -71,16 +70,43 @@ jobs:
           docker push $GHCR_IMAGE:latest
           docker push $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
 
-      # 创建 Release
+      # 创建Release（保留完整说明）
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.metadata.outputs.TAG_NAME }}
           name: "Release ${{ steps.metadata.outputs.VERSION }}"
           body: |
-            ### 镜像信息
-            - **本地镜像**: `random-images-api:latest`
-            - **GHCR 镜像**: `ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}`
+            ### 构建信息
+            - **触发提交**: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
             - **构建时间**: ${{ steps.metadata.outputs.BUILD_DATE }}
+
+            ### Docker镜像信息
+            - **本地镜像名**: `random-images-api:latest`
+            - **GHCR镜像**: `$GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}`
+            
+            ### 镜像获取方式
+            #### 从Release附件加载
+            ```bash
+            docker load -i image-${{ steps.metadata.outputs.VERSION }}.tar
+            ```
+
+            #### 从GHCR拉取最新版
+            ```bash
+            docker pull $GHCR_IMAGE:latest
+            ```
+
+            #### 拉取特定版本
+            ```bash
+            docker pull $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
+            ```
+
+            ### 最近更新
+            $(git log --pretty=format:"- %h %s" -n 5 ${{ github.ref }})
           files: |
             docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_IMAGE: ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api
