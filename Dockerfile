@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     --trusted-host pypi.tuna.tsinghua.edu.cn
 
 COPY app.py .
+COPY static ./static
 
 VOLUME /images
 

@@ -11,6 +11,19 @@ IMAGE_BASE = '/app/images'
 folder_cache = {}
 cache_lock = Lock()
 
+# 确保路由配置正确（新增以下调试语句）
+@app.route('/favicon.ico')
+def favicon():
+    icon_path = os.path.join(app.root_path, 'static')
+    print(f"当前图标路径：{icon_path}")  # 调试路径输出
+    if not os.path.exists(os.path.join(icon_path, 'favicon.ico')):
+        print("错误：未找到图标文件")    # 文件存在性检查
+    return send_from_directory(
+        icon_path,
+        'favicon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
+
 # 文件监控处理器
 class FolderChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):
