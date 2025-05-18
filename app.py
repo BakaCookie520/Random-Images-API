@@ -11,13 +11,10 @@ IMAGE_BASE = '/app/images'
 folder_cache = {}
 cache_lock = Lock()
 
-# 确保路由配置正确（新增以下调试语句）
+# 确保路由配置正确
 @app.route('/favicon.ico')
 def favicon():
     icon_path = os.path.join(app.root_path, 'static')
-    print(f"当前图标路径：{icon_path}")  # 调试路径输出
-    if not os.path.exists(os.path.join(icon_path, 'favicon.ico')):
-        print("错误：未找到图标文件")    # 文件存在性检查
     return send_from_directory(
         icon_path,
         'favicon.ico',
@@ -27,20 +24,32 @@ def favicon():
 # 文件监控处理器
 class FolderChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):
+        """处理文件/目录修改事件"""
         if event.is_directory:
             folder = os.path.relpath(event.src_path, IMAGE_BASE)
-            with cache_lock:
-                if folder in folder_cache:
-                    print(f"Detected changes in {folder}, refreshing cache...")
-                    del folder_cache[folder]
+        else:
+            folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
+        
+        self._invalidate_cache(folder, "修改")
 
     def on_created(self, event):
+        """处理文件创建事件"""
         if not event.is_directory:
             folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
-            with cache_lock:
-                if folder in folder_cache:
-                    print(f"New file in {folder}, refreshing cache...")
-                    del folder_cache[folder]
+            self._invalidate_cache(folder, "创建")
+
+    def on_deleted(self, event):
+        """处理文件删除事件"""
+        if not event.is_directory:
+            folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
+            self._invalidate_cache(folder, "删除")
+
+    def _invalidate_cache(self, folder, action):
+        """统一处理缓存失效"""
+        with cache_lock:
+            if folder in folder_cache:
+                print(f"检测到{folder}目录的{action}操作，刷新缓存...")
+                del folder_cache[folder]
 
 # 初始化文件监控
 observer = Observer()
@@ -49,7 +58,7 @@ observer.start()
 
 @app.after_request
 def set_cache_control(response):
-    response.headers['Cache-Control'] = 'public'
+    response.headers['Cache-Control'] = 'public, max-age=300'  # 添加适当的缓存时间
     return response
 
 def init_folder_cache(folder):
@@ -73,10 +82,9 @@ def init_folder_cache(folder):
 @app.route('/<folder>')
 def serve_sequential_image(folder):
     with cache_lock:
-        # 检查缓存有效性
         if folder not in folder_cache:
             if not (images := init_folder_cache(folder)):
-                return "Folder not found", 404
+                return "文件夹不存在", 404
             folder_cache[folder] = {"images": images, "index": 0}
         
         cache = folder_cache[folder]
@@ -94,8 +102,17 @@ def serve_image(folder, filename):
         mimetype='image'
     )
 
-from gevent import pywsgi  
+from gevent import pywsgi
 
-if __name__ == '__main__':  
-    server = pywsgi.WSGIServer(('0.0.0.0', 50721), app)  
-    server.serve_forever()
+if __name__ == '__main__':
+    # 添加路径验证和调试信息
+    print(f"监控路径：{IMAGE_BASE}，是否存在：{os.path.exists(IMAGE_BASE)}")
+    print(f"目录权限：{os.access(IMAGE_BASE, os.R_OK | os.W_OK)}")
+    
+    try:
+        server = pywsgi.WSGIServer(('0.0.0.0', 50721), app)
+        print("服务器已启动...")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
