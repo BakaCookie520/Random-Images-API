@@ -94,9 +94,8 @@ def serve_image(folder, filename):
         mimetype='image'
     )
 
-if __name__ == '__main__':
-    try:
-        app.run(host='0.0.0.0', port=50721)
-    finally:
-        observer.stop()
-        observer.join()
+from gevent import pywsgi  
+
+if __name__ == '__main__':  
+    server = pywsgi.WSGIServer(('0.0.0.0', 50721), app)  
+    server.serve_forever()
