@@ -49,7 +49,7 @@ random-image-api.bakacookie520.top/pc
 
   （1）安装环境  
 
-    pip install --no-cache-dir Flask==3.0.2 watchdog==4.0.0 gevent==23.9.1 -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn 
+    pip install --no-cache-dir Flask==3.0.2 watchdog==4.0.0 gevent -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn 
 
   （2）启动  
 
