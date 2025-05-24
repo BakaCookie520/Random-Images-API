@@ -1,4 +1,4 @@
-name: Conditional Auto-Deploy
+name: Auto-Deploy
 
 on:
   push:
@@ -7,9 +7,7 @@ on:
 jobs:
   build-push-and-release:
     runs-on: ubuntu-latest
-    # 关键条件：检查所有提交信息是否包含触发关键词
-    if: |
-      contains(join(github.event.commits.*.message, ' '), 'autorelease pls')
+    if: contains(join(github.event.commits.*.message, ' '), 'autorelease pls')
     permissions:
       contents: write
       packages: write
@@ -27,12 +25,15 @@ jobs:
       - name: Generate Metadata
         id: metadata
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
+          # 精确获取 7 位短 SHA
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          
           echo "VERSION=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "TAG_NAME=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT  # 新增输出
 
       - name: Create Tag
         run: |
@@ -77,7 +78,7 @@ jobs:
             ### 构建信息
             - **版本**: ${{ steps.metadata.outputs.VERSION }}
             - **时间**: ${{ steps.metadata.outputs.BUILD_DATE }}
-            - **提交**: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            - **提交**: [${{ steps.metadata.outputs.SHORT_SHA }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
 
             ### 镜像使用
             #### 从附件加载
@@ -88,10 +89,10 @@ jobs:
             #### 从 GHCR 拉取
             ```bash
             # 最新稳定版
-            docker pull $GHCR_IMAGE:latest
+            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
 
             # 本次特定版本
-            docker pull $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
+            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
             ```
           files: |
             docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
