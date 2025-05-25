@@ -13,7 +13,6 @@ COPY app.py .
 COPY static ./static
 COPY html ./html
 
-VOLUME /images
 
 EXPOSE 50721
 
