@@ -1,1 +1,78 @@
-<p>欢迎使用<strong>Random-Images-API</strong>！当您看到这里时，就代表已经安装成功~<br>这里是主界面，将会引导您如何使用！<br>1.如果您按照本项目的GitHub提示进行安装，那么现在您的根目录下应该有一个<code>images</code>文件夹<br>2.进入此文件夹，新建一个子文件夹，比如<code>pc</code><br>3.输入您的IP（域名）/子文件夹（比如<code>1.2.3.4:50721/pc</code>），将会随即跳转到该文件夹下的一张图片~</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Domain</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            flex-direction: column;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 1em;
+        }
+        p {
+            font-size: 1.2em;
+            margin-bottom: 1em;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+            margin: 0 5px;
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #e0f7fa;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+        a:hover {
+            background-color: #b2ebf2;
+        }
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            justify-items: center;
+            margin-top: 20px;
+        }
+        .category {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>安装成功！欢迎来到主页面</h1>
+        <p>可用API：</p>
+        <div class="categories">
+            {% for folder in subfolders %}
+                <div class="category">
+                    <a href="/{{ folder }}">{{ folder|capitalize }}</a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
+
+
+

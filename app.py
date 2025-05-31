@@ -1,4 +1,4 @@
-from flask import Flask, redirect, send_from_directory, abort
+from flask import Flask, redirect, send_from_directory, abort, render_template
 import os
 import random
 import time
@@ -6,7 +6,7 @@ from threading import Lock
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='/app/html')
 IMAGE_BASE = '/app/images'
 HTML_BASE = '/app/html'
 folder_cache = {}
@@ -21,17 +21,13 @@ def get_safe_path(base, *paths):
 
 @app.route('/')
 def serve_main_page():
-    main_page = get_safe_path(HTML_BASE, 'maindomain.html')
-    if not main_page or not os.path.isfile(main_page):
-        abort(500, description="主页面配置错误")
-    return send_from_directory(HTML_BASE, 'maindomain.html')
+    subfolders = [d for d in os.listdir(IMAGE_BASE) if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
+    return render_template('maindomain.html', subfolders=subfolders)
 
 @app.errorhandler(404)
 def handle_404(e):
-    error_page = get_safe_path(HTML_BASE, 'fnf.html')
-    if not error_page or not os.path.isfile(error_page):
-        return "404 Not Found (且错误页面配置错误)", 404
-    return send_from_directory(HTML_BASE, 'fnf.html'), 404
+    subfolders = [d for d in os.listdir(IMAGE_BASE) if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
+    return render_template('fnf.html', subfolders=subfolders), 404
 
 @app.errorhandler(500)
 def handle_500(e):
@@ -54,8 +50,45 @@ def serve_sequential_image(folder):
     if not folder:
         return redirect('/')
     
-    # 修复此处括号问题
-    folder_path = get_safe_path(IMAGE_BASE, folder)  # 移除了多余的)
+    folder_path = get_safe_path(IMAGE_BASE, folder)
+    if not folder_path or not os.path.isdir(folder_path):
+        abort(404)
+    
+    with cache_lock:
+        if folder not in folder_cache:
+            images = init_folder_cache(folder)
+            if not images:
+                abort(404)
+            
+            seed = hash(f"{folder}-{time.time()}") % (2**32)
+            random.seed(seed)
+            shuffled = images.copy()
+            random.shuffle(shuffled)
+            
+            folder_cache[folder] = {
+                'images': shuffled,
+                'index': 0,
+                'seed': seed
+            }
+        
+        cache = folder_cache[folder]
+        if not cache['images']:
+            del folder_cache[folder]
+            abort(404)
+        
+        current_index = cache['index']
+        image = cache['images'][current_index]
+        cache['index'] = (current_index + 1) % len(cache['images'])
+    
+    return redirect(f'/{folder}/{image}')
+
+@app.route('/random/<path:folder>')
+def serve_random_image(folder):
+    folder = folder.strip('/')
+    if not folder:
+        abort(404)
+    
+    folder_path = get_safe_path(IMAGE_BASE, folder)
     if not folder_path or not os.path.isdir(folder_path):
         abort(404)
     
@@ -89,12 +122,11 @@ def serve_sequential_image(folder):
 
 @app.route('/<path:folder>/<filename>')
 def serve_image(folder, filename):
-    # 修复此处括号问题
-    safe_folder = get_safe_path(IMAGE_BASE, folder)  # 移除了多余的)
+    safe_folder = get_safe_path(IMAGE_BASE, folder)
     if not safe_folder:
         abort(404)
     
-    file_path = get_safe_path(safe_folder, filename)  # 移除了多余的)
+    file_path = get_safe_path(safe_folder, filename)
     if not file_path or not os.path.isfile(file_path):
         abort(404)
     
@@ -136,19 +168,15 @@ def set_cache_control(response):
     return response
 
 def init_folder_cache(folder):
-    """增强型缓存初始化"""
-    # 修复此处括号问题
-    folder_path = get_safe_path(IMAGE_BASE, folder)  # 移除了多余的)
+    folder_path = get_safe_path(IMAGE_BASE, folder)
     try:
         if not folder_path or not os.path.isdir(folder_path):
             return None
         
         valid_files = []
         for f in os.listdir(folder_path):
-            # 修复此处括号问题
-            file_path = get_safe_path(folder_path, f)  # 移除了多余的)
-            if file_path and os.path.isfile(file_path) and f.lower().endswith(
-                ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            file_path = get_safe_path(folder_path, f)
+            if file_path and os.path.isfile(file_path) and f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
                 valid_files.append(f)
         
         return sorted(valid_files) or None
@@ -185,4 +213,3 @@ if __name__ == '__main__':
         observer.stop()
     finally:
         observer.join()
-        
