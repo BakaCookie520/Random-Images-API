@@ -42,7 +42,7 @@ random-image-api.bakacookie520.top/pc
     -p 50721:50721 \
     -v $(pwd)/images:/app/images \
     --name my-image-server \
-    ria:latest
+    ghcr.io/bakacookie520/random-images-api:latest
 
   
 2.使用脚本  
