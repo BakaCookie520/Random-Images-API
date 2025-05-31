@@ -1,7 +1,7 @@
 # Random-Images-API
 
 
-一个基于Flask的Docker容器服务，支持动态子文件夹管理和随机图片展示。当访问`/子文件夹名称`时，将随机重定向到该文件夹下的任意图片文件。
+一个基于Flask的Docker容器服务，支持动态子文件夹管理和随机图片展示。当访问`/子文件夹`时，将随机重定向到该文件夹下的任意图片文件。
 
 ## Demo
 
@@ -18,7 +18,7 @@ random-image-api.bakacookie520.top/pc
 ### 前置要求
 - Docker 20.10+
 - 至少100MB可用磁盘空间
-- （可选）使用脚本使安装Python环境
+- （可选）使用脚本时安装Python环境
 
 ## 快速开始
 
@@ -32,9 +32,9 @@ random-image-api.bakacookie520.top/pc
 
 1.使用Docker
 
-  (1)导入
+  (1)拉取镜像
   
-    docker import ria < Random-Images-API.tar 
+    docker pull ghcr.io/bakacookie520/random-images-api:latest 
      
   (2)启动
   
