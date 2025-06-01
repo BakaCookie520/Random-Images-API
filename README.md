@@ -65,7 +65,7 @@ random-image-api.bakacookie520.top/pc
 
 ![Demo](https://vip.123pan.cn/1815812033/yk6baz03t0n000d7w33gztylj6ousn5aDIYPAIYPDqawDvxPAdQOAY==.png)
 ![Demo](https://vip.123pan.cn/1815812033/yk6baz03t0m000d7w33g8h9k66nw0ly9DIYPAIYPDqawDvxPAdQOAY==.png)
-![main domain]（https://vip.123pan.cn/1815812033/ymjew503t0m000d7w32xqlzu1o3n0tkrDIYPAIYPDqawDvxPAdQOAY==.png）
+![main domain](https://vip.123pan.cn/1815812033/ymjew503t0m000d7w32xqlzu1o3n0tkrDIYPAIYPDqawDvxPAdQOAY==.png)
 ![404](https://vip.123pan.cn/1815812033/ymjew503t0n000d7w32y5tueh6fq0lrlDIYPAIYPDqawDvxPAdQOAY==.png)
 
   
