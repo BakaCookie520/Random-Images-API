@@ -7,11 +7,11 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # 创建Flask应用实例，设置模板文件夹路径
-app = Flask(__name__, template_folder='/app/html')
+app = Flask(__name__, template_folder='html')
 # 定义图像存储的基础路径
-IMAGE_BASE = '/app/images'
+IMAGE_BASE = 'images'
 # 定义HTML模板的基础路径
-HTML_BASE = '/app/html'
+HTML_BASE = 'html'
 # 创建文件夹缓存字典（用于存储各文件夹的图像列表）
 folder_cache = {}
 # 创建线程锁（确保多线程环境下的缓存操作安全）
