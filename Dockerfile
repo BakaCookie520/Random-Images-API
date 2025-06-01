@@ -16,4 +16,4 @@ COPY html ./html
 
 EXPOSE 50721
 
-CMD ["python", "app.py"]
+CMD ["python","-u","app.py"]
