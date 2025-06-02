@@ -33,7 +33,7 @@ def serve_main_page():
     subfolders = [d for d in os.listdir(IMAGE_BASE)
                  if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
     # 渲染主页面模板并传入子文件夹列表
-    return render_template('maindomain.html', subfolders=subfolders)
+    return render_template('MainDomain.html', subfolders=subfolders)
 
 @app.errorhandler(404)
 def handle_404(e):
@@ -118,37 +118,6 @@ def serve_random_image(folder):
     if not folder:
         abort(404)
 
-    folder_path = get_safe_path(IMAGE_BASE, folder)
-    if not folder_path or not os.path.isdir(folder_path):
-        abort(404)
-
-    with cache_lock:
-        if folder not in folder_cache:
-            images = init_folder_cache(folder)
-            if not images:
-                abort(404)
-
-            seed = hash(f"{folder}-{time.time()}") % (2**32)
-            random.seed(seed)
-            shuffled = images.copy()
-            random.shuffle(shuffled)
-
-            folder_cache[folder] = {
-                'images': shuffled,
-                'index': 0,
-                'seed': seed
-            }
-
-        cache = folder_cache[folder]
-        if not cache['images']:
-            del folder_cache[folder]
-            abort(404)
-
-        current_index = cache['index']
-        image = cache['images'][current_index]
-        cache['index'] = (current_index + 1) % len(cache['images'])
-
-    return redirect(f'/{folder}/{image}')
 
 @app.route('/<path:folder>/<filename>')
 def serve_image(folder, filename):
@@ -235,7 +204,7 @@ def init_folder_cache(folder):
 if __name__ == '__main__':
     # 启动前检查：验证必需文件和目录存在
     required_files = {
-        HTML_BASE: ['maindomain.html', 'fnf.html'],  # 必需HTML模板
+        HTML_BASE: ['MainDomain.html', 'fnf.html'],  # 必需HTML模板
         IMAGE_BASE: []  # 只需目录存在
     }
 
