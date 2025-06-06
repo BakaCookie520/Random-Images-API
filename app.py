@@ -1,4 +1,4 @@
-from flask import Flask, redirect, send_from_directory, abort, render_template
+from flask import Flask, redirect, send_from_directory, abort, render_template, request
 import os
 import random
 import time
@@ -174,10 +174,15 @@ observer.schedule(FolderChangeHandler(), IMAGE_BASE, recursive=True)
 
 @app.after_request
 def set_cache_control(response):
-    """响应后处理：设置HTTP缓存头"""
+    """响应后处理：根据CDN请求头动态设置缓存策略"""
     if response.status_code == 200:
-        # 设置客户端缓存5分钟（300秒）
-        response.headers['Cache-Control'] = 'public, max-age=300'
+        # 检查请求头中是否存在 CDN: CDNRequest
+        if request.headers.get('CDN') == 'CDNRequest':
+            # CDN请求：设置公共缓存5分钟
+            response.headers['Cache-Control'] = 'public'
+        else:
+            # 非CDN请求：强制每次验证
+            response.headers['Cache-Control'] = 'no-cache'
     return response
 
 def init_folder_cache(folder):
