@@ -45,7 +45,7 @@ random-image-api.bakacookie520.top/pc
     ghcr.io/bakacookie520/random-images-api:latest
 
   
-2.使用脚本  
+2.使用脚本（仅支持Python 3.11版本）    
 
   （1）克隆项目
 
@@ -58,6 +58,34 @@ random-image-api.bakacookie520.top/pc
   （3）启动  
 
     python app.py 
+
+### 使用CDN（可选）  
+
+推荐使用阿里云CDN
+
+  1.在域名管理/域名/缓存配置/节点HTTP响应头中，配置`Cache-Control: no-cache`
+  
+  ![image](https://github.com/user-attachments/assets/134b163d-f5e9-4bfc-9776-180e44686667)
+
+
+  2.在域名管理/域名/回源配置/回源HTTP请求头中，配置自定义回源请求头`CDN: CDNRequest`
+
+  ![image](https://github.com/user-attachments/assets/7bd0cccd-6010-414a-aa68-ad406fea437e)
+
+  3.在域名管理/域名/视频相关中，配置`Range回源：跟随客户端Range请求`  
+
+  ![image](https://github.com/user-attachments/assets/7ba38634-964a-4b4d-9ecb-31d8fa89ee3f)
+
+  4.在域名管理/域名/EdgeScript自定义策略中，配置规则如下：
+
+
+       if match_re($uri, '^/pc') {
+        set_cache_ttl('code', '301=0,302=0')
+    }
+        if match_re($uri, '^/mobile') {
+        set_cache_ttl('code', '301=0,302=0')
+    }
+
 
 ### 如何使用？  
 
