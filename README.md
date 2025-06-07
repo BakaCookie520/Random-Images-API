@@ -57,6 +57,8 @@ random-image-api.bakacookie520.top/pc
 
   （3）启动  
 
+    cd Random-Images-API  
+
     python app.py 
 
 ### 使用CDN（可选）  
