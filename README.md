@@ -76,16 +76,6 @@ random-image-api.bakacookie520.top/pc
 
   ![image](https://github.com/user-attachments/assets/7ba38634-964a-4b4d-9ecb-31d8fa89ee3f)
 
-  4.在域名管理/域名/EdgeScript自定义策略中，配置规则如下：
-
-
-       if match_re($uri, '^/pc') {
-        set_cache_ttl('code', '301=0,302=0')
-    }
-        if match_re($uri, '^/mobile') {
-        set_cache_ttl('code', '301=0,302=0')
-    }
-
 
 ### 如何使用？  
 
