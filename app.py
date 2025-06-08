@@ -1,13 +1,34 @@
-from flask import Flask, redirect, send_from_directory, abort, render_template, request
+from flask import Flask, redirect, send_from_directory, abort, render_template, request, Response
 import os
 import random
 import time
 from threading import Lock
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_caching import Cache
+from PIL import Image
+import io
+import redis
 
 # 创建Flask应用实例，设置模板文件夹路径
 app = Flask(__name__, template_folder='html')
+
+# 配置缓存
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',  # 使用简单的内存缓存
+    'CACHE_DEFAULT_TIMEOUT': 300
+})
+
+# 配置请求限制
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri="memory://",  # 使用内存存储
+    default_limits=["200 per day", "50 per hour"]
+)
+
 # 定义图像存储的基础路径
 IMAGE_BASE = 'images'
 # 定义HTML模板的基础路径
@@ -118,8 +139,17 @@ def serve_random_image(folder):
     if not folder:
         abort(404)
 
+@app.after_request
+def add_security_headers(response):
+    """添加安全相关的响应头"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 @app.route('/<path:folder>/<filename>')
+@limiter.limit("10 per minute")
 def serve_image(folder, filename):
     """实际图像服务路由：发送图像文件"""
     # 验证文件夹路径
@@ -132,12 +162,49 @@ def serve_image(folder, filename):
     if not file_path or not os.path.isfile(file_path):
         abort(404)
 
-    # 发送图像文件
-    return send_from_directory(
-        safe_folder,
-        filename,
-        mimetype='image'  # 通用MIME类型
-    )
+    try:
+        # 生成缓存键
+        cache_key = f"image_{folder}_{filename}"
+        
+        # 尝试从缓存获取
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return Response(
+                cached_response,
+                mimetype=f'image/{os.path.splitext(filename)[1][1:].lower()}'
+            )
+
+        # 打开并优化图像
+        with Image.open(file_path) as img:
+            # 转换为RGB模式（如果是RGBA）
+            if img.mode in ('RGBA', 'LA'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1])
+                img = background
+            
+            # 调整图像大小（如果太大）
+            max_size = (7680, 4320)  # 8K分辨率
+            if img.size[0] > max_size[0] or img.size[1] > max_size[1]:
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # 保存到内存中
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format=img.format or 'JPEG', quality=85, optimize=True)
+            img_byte_arr.seek(0)
+            
+            # 获取字节数据
+            img_data = img_byte_arr.getvalue()
+            
+            # 缓存图像数据
+            cache.set(cache_key, img_data)
+            
+            return Response(
+                img_data,
+                mimetype=f'image/{img.format.lower() if img.format else "jpeg"}'
+            )
+    except Exception as e:
+        print(f"图像处理错误: {str(e)}")
+        abort(500)
 
 class FolderChangeHandler(FileSystemEventHandler):
     """文件系统事件处理器：监控文件夹变化"""

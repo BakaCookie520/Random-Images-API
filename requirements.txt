@@ -1,3 +1,7 @@
-Flask==3.0.2
-watchdog==4.0.0
-gevent
+Flask==3.0.0
+watchdog==3.0.0
+gevent==23.9.1
+flask-limiter==3.5.0
+flask-caching==2.1.0
+pillow==10.2.0
+redis==5.0.1
