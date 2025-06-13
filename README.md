@@ -50,16 +50,18 @@ random-image-api.bakacookie520.top/pc
   （1）克隆项目
 
     git clone https://github.com/BakaCookie520/Random-Images-API.git
+    
+    cd Random-Images-API  
 
   （2）安装环境  
 
-    pip install --no-cache-dir Flask==3.0.2 watchdog==4.0.0 gevent -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn 
+    pip install --no-cache-dir -r requirements.txt \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    --trusted-host pypi.tuna.tsinghua.edu.cn  
 
   （3）启动  
 
-    cd Random-Images-API  
-
-    python app.py 
+    python app.py
 
 ### 使用CDN（可选）  
 
