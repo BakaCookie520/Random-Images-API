@@ -241,8 +241,17 @@
         <div class="details">
             <h3>⏱️ 封禁详情</h3>
             <p><strong>您的IP地址：</strong> <span id="client-ip">{{ client_ip }}</span></p>
-            <p><strong>访问路径：</strong> {{ target_url }}</p>
-            <p><strong>预计解封时间：</strong> <span id="end-time"></span></p>
+            <p><strong>访问目标：</strong> {{ target_url }}</p>
+            <p><strong>目标类型：</strong>
+               <span id="target-type">
+                   {% if target_url.startswith('/images/') or target_url.startswith('/html/') %}
+                       文件访问
+                   {% else %}
+                       目录访问
+                   {% endif %}
+               </span>
+            </p>
+    <p><strong>预计解封时间：</strong> <span id="end-time"></span></p>
         </div>
 
         <div class="info">

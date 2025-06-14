@@ -8,6 +8,7 @@ from threading import Lock
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from collections import OrderedDict
+import re
 
 # 创建Flask应用实例，设置模板文件夹路径
 app = Flask(__name__, template_folder='html')
@@ -27,34 +28,19 @@ limiter = Limiter(
     default_limits=["50 per hour"],
     storage_uri="memory://"
 )
-# 存储封禁结束时间（使用有序字典并设置最大长度避免内存溢出）
-ban_end_times = OrderedDict()
-MAX_BAN_RECORDS = 1000  # 最多存储1000条封禁记录
+
+# 存储封禁信息（结构：{ip: {path: (end_time, is_directory)}}）
+ban_records = {}
+# 全局封禁时长（秒）
+BAN_DURATION = 3600  # 1小时封禁
+# 图像文件扩展名列表
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
 
 
-# 先定义 get_retry_after 函数，确保它在 handle_ratelimit_exceeded 之前
 def get_retry_after(e):
-    """从429异常中提取重试时间"""
-    try:
-        # 尝试直接获取retry_after属性
-        if hasattr(e, 'retry_after') and e.retry_after:
-            return int(e.retry_after)
-    except (TypeError, ValueError):
-        pass
+    """从429异常中提取重试时间，固定返回全局封禁时长"""
+    return BAN_DURATION
 
-    # 尝试从错误描述中解析
-    description = e.description
-    if "Retry in" in description:
-        try:
-            parts = description.split("Retry in ")
-            if len(parts) > 1:
-                retry_str = parts[1].split(" ")[0]
-                return int(retry_str)
-        except (IndexError, ValueError):
-            pass
-
-    # 默认返回1小时
-    return 3600
 
 def get_safe_path(base, *paths):
     """验证并返回安全路径（防止路径遍历攻击）"""
@@ -65,53 +51,141 @@ def get_safe_path(base, *paths):
         return None  # 路径不安全返回None
     return full_path  # 安全路径
 
+
+def is_banned(client_ip, path):
+    """检查指定IP和路径是否已被封禁（返回剩余时间和是否被封禁）"""
+    if client_ip not in ban_records:
+        return False, 0, 0
+
+    current_time = time.time()
+    ip_records = ban_records[client_ip]
+
+    # 1. 检查精确匹配
+    if path in ip_records:
+        end_time, _ = ip_records[path]
+        if current_time < end_time:
+            return True, max(0, end_time - current_time), end_time
+
+    # 2. 检查目录封禁
+    for banned_path, (end_time, is_directory) in ip_records.items():
+        # 只检查目录封禁
+        if not is_directory or current_time >= end_time:
+            continue
+
+        # 检查路径是否以被封禁目录开头
+        if path == banned_path or path.startswith(banned_path + '/'):
+            return True, max(0, end_time - current_time), end_time
+
+    return False, 0, 0
+
+
+def add_ban(client_ip, path, is_directory):
+    """添加封禁记录，确保相同IP的封禁时间一致"""
+    current_time = time.time()
+
+    # 获取该IP的封禁结束时间（如果已有封禁则使用相同结束时间）
+    if client_ip in ban_records:
+        # 查找该IP现有的封禁结束时间
+        ip_records = ban_records[client_ip]
+        existing_end_time = None
+
+        # 查找现有的封禁结束时间
+        for record in ip_records.values():
+            if record[0] > current_time:  # 只考虑未过期的封禁
+                existing_end_time = record[0]
+                break
+
+        # 使用现有封禁时间或创建新时间
+        end_time = existing_end_time or (current_time + BAN_DURATION)
+    else:
+        # 新IP封禁
+        end_time = current_time + BAN_DURATION
+        ban_records[client_ip] = {}
+
+    # 添加封禁记录
+    ban_records[client_ip][path] = (end_time, is_directory)
+    return end_time
+
+
+def cleanup_bans():
+    """清理过期封禁记录"""
+    current_time = time.time()
+    ips_to_remove = []
+
+    for ip, records in list(ban_records.items()):
+        # 移除过期记录
+        valid_records = {}
+        for path, (end_time, is_directory) in records.items():
+            if end_time > current_time:
+                valid_records[path] = (end_time, is_directory)
+
+        # 更新或移除IP记录
+        if valid_records:
+            ban_records[ip] = valid_records
+        else:
+            ips_to_remove.append(ip)
+
+    # 移除无记录的IP
+    for ip in ips_to_remove:
+        del ban_records[ip]
+
+
+@app.before_request
+def check_ban_status():
+    """在每次请求前检查当前路径是否被封禁"""
+    client_ip = request.remote_addr
+    current_path = request.path
+    banned, remaining, end_time = is_banned(client_ip, current_path)
+
+    if banned:
+        # 清理过期封禁
+        cleanup_bans()
+
+        # 返回封禁页面
+        return render_template('too_many_requests.html',
+                               retry_after=int(remaining),
+                               end_time=int(end_time),
+                               client_ip=client_ip,
+                               target_url=current_path), 429
+
+    # 每次请求后清理过期封禁
+    cleanup_bans()
+
+
 @app.route('/')
 def serve_main_page():
     """主路由：显示包含所有子文件夹列表的主页"""
     # 获取IMAGE_BASE下所有合法的子文件夹
     subfolders = [d for d in os.listdir(IMAGE_BASE)
-                 if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
+                  if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
     # 渲染主页面模板并传入子文件夹列表
     return render_template('MainDomain.html', subfolders=subfolders)
+
 
 @app.errorhandler(404)
 def handle_404(e):
     """404错误处理：显示自定义404页面"""
     # 获取所有可用的子文件夹（用于导航）
     subfolders = [d for d in os.listdir(IMAGE_BASE)
-                 if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
+                  if os.path.isdir(get_safe_path(IMAGE_BASE, d))]
     # 渲染404模板并传入子文件夹列表
     return render_template('fnf.html', subfolders=subfolders), 404
 
 
 @app.errorhandler(429)
 def handle_ratelimit_exceeded(e):
-    """自定义429错误处理，显示封禁倒计时页面"""
+    """自定义429错误处理，记录封禁信息并显示封禁页面"""
     client_ip = request.remote_addr
     target_url = request.path
-    ban_key = f"{client_ip}@{target_url}"
 
-    # 获取封禁时长
-    retry_after = get_retry_after(e)
+    # 确定路径类型（文件或目录）
+    is_directory = not any(target_url.lower().endswith(ext) for ext in IMAGE_EXTENSIONS)
 
-    current_time = time.time()
-
-    # 检查是否已有封禁记录
-    if ban_key in ban_end_times:
-        end_time = ban_end_times[ban_key]
-        # 如果封禁已过期，则更新封禁结束时间
-        if current_time > end_time:
-            end_time = current_time + retry_after
-            ban_end_times[ban_key] = end_time
-    else:
-        # 新的封禁记录
-        end_time = current_time + retry_after
-        ban_end_times[ban_key] = end_time
-        # 清理旧记录，避免内存占用过大
-        if len(ban_end_times) > MAX_BAN_RECORDS:
-            ban_end_times.popitem(last=False)  # 移除最早的一条记录
+    # 添加封禁记录（确保使用相同的封禁时间）
+    end_time = add_ban(client_ip, target_url, is_directory)
 
     # 计算剩余封禁时间
+    current_time = time.time()
     remaining = max(0, end_time - current_time)
 
     return render_template('too_many_requests.html',
@@ -120,10 +194,12 @@ def handle_ratelimit_exceeded(e):
                            client_ip=client_ip,
                            target_url=target_url), 429
 
+
 @app.errorhandler(500)
 def handle_500(e):
     """500错误处理：返回简单错误消息"""
     return "服务器配置错误，请联系管理员", 500
+
 
 @app.route('/favicon.ico')
 def favicon():
@@ -140,9 +216,24 @@ def favicon():
         mimetype='image/vnd.microsoft.icon'
     )
 
+
 @app.route('/<path:folder>')
 def serve_sequential_image(folder):
     """顺序服务图像：按预定义的随机顺序循环显示文件夹中的图像"""
+    # 首先检查封禁状态
+    client_ip = request.remote_addr
+    current_path = request.path
+    banned, remaining, end_time = is_banned(client_ip, current_path)
+
+    if banned:
+        # 如果被封禁，直接返回封禁页面
+        return render_template('too_many_requests.html',
+                               retry_after=int(remaining),
+                               end_time=int(end_time),
+                               client_ip=client_ip,
+                               target_url=current_path), 429
+
+    # 然后处理路径和文件夹逻辑
     folder = folder.strip('/')  # 清理文件夹路径
     if not folder:
         return redirect('/')  # 空路径重定向到主页
@@ -160,7 +251,7 @@ def serve_sequential_image(folder):
                 abort(404)  # 无有效图像
 
             # 创建基于文件夹和时间的随机种子
-            seed = hash(f"{folder}-{time.time()}") % (2**32)
+            seed = hash(f"{folder}-{time.time()}") % (2 ** 32)
             random.seed(seed)
             shuffled = images.copy()
             random.shuffle(shuffled)  # 随机打乱图像列表
@@ -186,18 +277,6 @@ def serve_sequential_image(folder):
     # 重定向到实际图像URL
     return redirect(f'/{folder}/{image}')
 
-@app.route('/random/<path:folder>')
-def serve_random_image(folder):
-    """随机服务图像：功能与顺序服务相同（代码结构保持一致性）"""
-    # 实现逻辑与serve_sequential_image相同
-    folder = folder.strip('/')
-    if not folder:
-        abort(404)
-    # 此处添加与serve_sequential_image相同的逻辑
-    # 由于问题只要求修复Redis问题，此处省略具体实现
-    # 实际应用中应实现随机图像服务逻辑
-    return serve_sequential_image(folder)  # 临时解决方案
-
 
 @app.route('/<path:folder>/<filename>')
 def serve_image(folder, filename):
@@ -218,6 +297,7 @@ def serve_image(folder, filename):
         filename,
         mimetype='image'  # 通用MIME类型
     )
+
 
 class FolderChangeHandler(FileSystemEventHandler):
     """文件系统事件处理器：监控文件夹变化"""
@@ -247,10 +327,12 @@ class FolderChangeHandler(FileSystemEventHandler):
                 print(f"缓存失效: {folder} ({action})")
                 del folder_cache[folder]  # 删除缓存项
 
+
 # 创建文件系统观察者
 observer = Observer()
 # 安排事件处理器监视IMAGE_BASE目录（递归监视）
 observer.schedule(FolderChangeHandler(), IMAGE_BASE, recursive=True)
+
 
 @app.after_request
 def set_cache_control(response):
@@ -265,6 +347,7 @@ def set_cache_control(response):
             response.headers['Cache-Control'] = 'no-cache'
     return response
 
+
 def init_folder_cache(folder):
     """初始化文件夹缓存：扫描并验证图像文件"""
     folder_path = get_safe_path(IMAGE_BASE, folder)
@@ -277,7 +360,7 @@ def init_folder_cache(folder):
             file_path = get_safe_path(folder_path, f)
             # 验证文件存在且是支持的图像格式
             if file_path and os.path.isfile(file_path) and f.lower().endswith(
-                ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                    ('.png', '.jpg', '.jpeg', '.gif', '.webp')):
                 valid_files.append(f)
 
         # 返回排序后的文件列表（确保跨平台一致性）
@@ -285,6 +368,7 @@ def init_folder_cache(folder):
     except Exception as e:
         print(f"初始化缓存失败: {str(e)}")
         return None
+
 
 if __name__ == '__main__':
     # 启动前检查：验证必需文件和目录存在
@@ -313,6 +397,7 @@ if __name__ == '__main__':
     try:
         # 使用gevent WSGI服务器（高性能）
         from gevent import pywsgi
+
         # 创建服务器实例（监听所有IP的50721端口）
         server = pywsgi.WSGIServer(('0.0.0.0', 50721), app)
         print("服务器运行在 0.0.0.0:50721")
