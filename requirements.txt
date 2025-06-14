@@ -1,3 +1,4 @@
-Flask==3.0.2
-watchdog==4.0.0
+Flask==2.2.5
 gevent
+watchdog==3.0.0
+Flask-Limiter==3.3.0
