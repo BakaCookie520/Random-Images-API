@@ -129,6 +129,11 @@ def cleanup_bans():
     for ip in ips_to_remove:
         del ban_records[ip]
 
+def get_real_ip():
+    forwarded_for = request.headers.get('X-Forwarded-For', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.headers.get('X-Real-IP', request.remote_addr)
 
 @app.before_request
 def check_ban_status():
@@ -175,7 +180,7 @@ def handle_404(e):
 @app.errorhandler(429)
 def handle_ratelimit_exceeded(e):
     """自定义429错误处理，记录封禁信息并显示封禁页面"""
-    client_ip = request.remote_addr
+    client_ip = get_real_ip()
     target_url = request.path
 
     # 确定路径类型（文件或目录）
