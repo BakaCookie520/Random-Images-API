@@ -7,8 +7,7 @@ import time
 from threading import Lock
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from collections import OrderedDict
-import re
+
 
 # 创建Flask应用实例，设置模板文件夹路径
 app = Flask(__name__, template_folder='html')
