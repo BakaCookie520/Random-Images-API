@@ -65,15 +65,22 @@ def is_banned(client_ip, path):
         if current_time < end_time:
             return True, max(0, end_time - current_time), end_time
 
-    # 2. 检查目录封禁
+    # 2. 检查目录封禁 - 修复部分开始
     for banned_path, (end_time, is_directory) in ip_records.items():
         # 只检查目录封禁
         if not is_directory or current_time >= end_time:
             continue
 
-        # 检查路径是否以被封禁目录开头
-        if path == banned_path or path.startswith(banned_path + '/'):
+        # 规范化目录路径：确保以斜杠结尾
+        if not banned_path.endswith('/'):
+            normalized_banned_path = banned_path + '/'
+        else:
+            normalized_banned_path = banned_path
+
+        # 检查路径是否以规范化目录路径开头
+        if path == normalized_banned_path.rstrip('/') or path.startswith(normalized_banned_path):
             return True, max(0, end_time - current_time), end_time
+    # 修复部分结束
 
     return False, 0, 0
 
