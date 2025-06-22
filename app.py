@@ -7,7 +7,11 @@ import time
 from threading import Lock
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import logging
 
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # 创建Flask应用实例，设置模板文件夹路径
 app = Flask(__name__, template_folder='html')
@@ -65,7 +69,7 @@ def is_banned(client_ip, path):
         if current_time < end_time:
             return True, max(0, end_time - current_time), end_time
 
-    # 2. 检查目录封禁 - 修复部分开始
+    # 2. 检查目录封禁
     for banned_path, (end_time, is_directory) in ip_records.items():
         # 只检查目录封禁
         if not is_directory or current_time >= end_time:
@@ -80,7 +84,6 @@ def is_banned(client_ip, path):
         # 检查路径是否以规范化目录路径开头
         if path == normalized_banned_path.rstrip('/') or path.startswith(normalized_banned_path):
             return True, max(0, end_time - current_time), end_time
-    # 修复部分结束
 
     return False, 0, 0
 
@@ -135,11 +138,13 @@ def cleanup_bans():
     for ip in ips_to_remove:
         del ban_records[ip]
 
+
 def get_real_ip():
     forwarded_for = request.headers.get('X-Forwarded-For', '')
     if forwarded_for:
         return forwarded_for.split(',')[0].strip()
     return request.headers.get('X-Real-IP', request.remote_addr)
+
 
 @app.before_request
 def check_ban_status():
@@ -254,39 +259,59 @@ def serve_sequential_image(folder):
     if not folder_path or not os.path.isdir(folder_path):
         abort(404)
 
-    with cache_lock:  # 线程安全操作
-        # 如果缓存中没有该文件夹
-        if folder not in folder_cache:
-            images = init_folder_cache(folder)  # 初始化缓存
-            if not images:
-                abort(404)  # 无有效图像
+    max_attempts = 3  # 最大重试次数
+    attempt = 0
 
-            # 创建基于文件夹和时间的随机种子
-            seed = hash(f"{folder}-{time.time()}") % (2 ** 32)
-            random.seed(seed)
-            shuffled = images.copy()
-            random.shuffle(shuffled)  # 随机打乱图像列表
+    while attempt < max_attempts:
+        with cache_lock:  # 线程安全操作
+            # 如果缓存中没有该文件夹
+            if folder not in folder_cache:
+                images = init_folder_cache(folder)  # 初始化缓存
+                if not images:
+                    abort(404)  # 无有效图像
 
-            # 将打乱后的列表存入缓存
-            folder_cache[folder] = {
-                'images': shuffled,
-                'index': 0,  # 当前索引位置
-                'seed': seed  # 使用的随机种子
-            }
+                # 创建基于文件夹和时间的随机种子
+                seed = hash(f"{folder}-{time.time()}") % (2 ** 32)
+                random.seed(seed)
+                shuffled = images.copy()
+                random.shuffle(shuffled)  # 随机打乱图像列表
 
-        cache = folder_cache[folder]
-        if not cache['images']:
-            del folder_cache[folder]  # 空列表则删除缓存项
-            abort(404)
+                # 将打乱后的列表存入缓存
+                folder_cache[folder] = {
+                    'images': shuffled,
+                    'index': 0,  # 当前索引位置
+                    'seed': seed  # 使用的随机种子
+                }
 
-        # 获取当前图像并更新索引
-        current_index = cache['index']
-        image = cache['images'][current_index]
-        # 循环索引（到达末尾后回到开头）
-        cache['index'] = (current_index + 1) % len(cache['images'])
+            cache = folder_cache[folder]
+            if not cache['images']:
+                del folder_cache[folder]  # 空列表则删除缓存项
+                abort(404)
 
-    # 重定向到实际图像URL
-    return redirect(f'/{folder}/{image}')
+            # 获取当前图像并更新索引
+            current_index = cache['index']
+            image = cache['images'][current_index]
+            # 循环索引（到达末尾后回到开头）
+            cache['index'] = (current_index + 1) % len(cache['images'])
+
+        # 检查图像文件是否存在
+        image_path = get_safe_path(folder_path, image)
+        if image_path and os.path.isfile(image_path):
+            # 重定向到实际图像URL
+            return redirect(f'/{folder}/{image}')
+
+        # 文件不存在：记录日志并尝试重建缓存
+        logger.warning(f"图像文件不存在: {image_path}, 尝试 {attempt + 1}/{max_attempts}")
+        attempt += 1
+
+        # 使缓存失效
+        with cache_lock:
+            if folder in folder_cache:
+                del folder_cache[folder]
+
+    # 多次尝试后仍失败
+    logger.error(f"无法找到有效图像: {folder}")
+    abort(404)
 
 
 @app.route('/<path:folder>/<filename>')
@@ -300,6 +325,11 @@ def serve_image(folder, filename):
     # 验证文件路径
     file_path = get_safe_path(safe_folder, filename)
     if not file_path or not os.path.isfile(file_path):
+        # 文件不存在时使缓存失效
+        with cache_lock:
+            if folder in folder_cache:
+                logger.info(f"文件不存在，使缓存失效: {folder}")
+                del folder_cache[folder]
         abort(404)
 
     # 发送图像文件
@@ -311,32 +341,28 @@ def serve_image(folder, filename):
 
 
 class FolderChangeHandler(FileSystemEventHandler):
-    """文件系统事件处理器：监控文件夹变化"""
+    """增强的文件系统事件处理器：处理所有变化事件"""
 
-    def on_modified(self, event):
-        """处理修改事件"""
-        if event.is_directory:  # 只处理目录修改
-            rel_path = os.path.relpath(event.src_path, IMAGE_BASE)
-            self._invalidate_cache(rel_path, "修改")
-
-    def on_created(self, event):
-        """处理创建事件"""
-        if not event.is_directory:  # 只处理文件创建
-            folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
-            self._invalidate_cache(folder, "创建")
-
-    def on_deleted(self, event):
-        """处理删除事件"""
-        if not event.is_directory:  # 只处理文件删除
-            folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
-            self._invalidate_cache(folder, "删除")
+    def on_any_event(self, event):
+        """处理所有文件系统事件"""
+        try:
+            if event.is_directory:
+                # 目录事件：使整个目录缓存失效
+                rel_path = os.path.relpath(event.src_path, IMAGE_BASE)
+                self._invalidate_cache(rel_path, event.event_type)
+            else:
+                # 文件事件：使父目录缓存失效
+                folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
+                self._invalidate_cache(folder, event.event_type)
+        except Exception as e:
+            logger.error(f"处理文件系统事件时出错: {str(e)}")
 
     def _invalidate_cache(self, folder, action):
         """使指定文件夹的缓存失效"""
         with cache_lock:
             if folder in folder_cache:
-                print(f"缓存失效: {folder} ({action})")
-                del folder_cache[folder]  # 删除缓存项
+                logger.info(f"缓存失效: {folder} ({action})")
+                del folder_cache[folder]
 
 
 # 创建文件系统观察者
@@ -377,7 +403,7 @@ def init_folder_cache(folder):
         # 返回排序后的文件列表（确保跨平台一致性）
         return sorted(valid_files) or None
     except Exception as e:
-        print(f"初始化缓存失败: {str(e)}")
+        logger.error(f"初始化缓存失败: {str(e)}")
         return None
 
 
@@ -391,19 +417,22 @@ if __name__ == '__main__':
     # 检查每个目录和文件
     for base, files in required_files.items():
         if not os.path.isdir(base):
-            print(f"致命错误：目录不存在 {base}")
+            logger.fatal(f"致命错误：目录不存在 {base}")
             exit(1)
         for f in files:
             path = os.path.join(base, f)
             if not os.path.isfile(path):
-                print(f"致命错误：文件不存在 {path}")
+                logger.fatal(f"致命错误：文件不存在 {path}")
                 exit(1)
         # 打印目录访问权限
-        print(f"目录验证通过：{base} (权限: {'可读' if os.access(base, os.R_OK) else '不可读'})")
+        logger.info(f"目录验证通过：{base} (权限: {'可读' if os.access(base, os.R_OK) else '不可读'})")
 
     # 启动文件监控
-    observer.start()
-    print("文件监控已启动...")
+    try:
+        observer.start()
+        logger.info("文件监控已启动...")
+    except Exception as e:
+        logger.error(f"启动文件监控失败: {str(e)}")
 
     try:
         # 使用gevent WSGI服务器（高性能）
@@ -411,9 +440,13 @@ if __name__ == '__main__':
 
         # 创建服务器实例（监听所有IP的50721端口）
         server = pywsgi.WSGIServer(('0.0.0.0', 50721), app)
-        print("服务器运行在 0.0.0.0:50721")
+        logger.info("服务器运行在 0.0.0.0:50721")
         server.serve_forever()  # 启动服务器
     except KeyboardInterrupt:
-        observer.stop()  # Ctrl+C停止监控
+        logger.info("接收到中断信号，停止服务器...")
+    except Exception as e:
+        logger.error(f"服务器错误: {str(e)}")
     finally:
+        observer.stop()  # 停止监控
         observer.join()  # 等待监控线程结束
+        logger.info("服务器已停止")
