@@ -89,10 +89,10 @@ jobs:
             #### 从 GHCR 拉取
             ```bash
             # 最新稳定版
-            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
+            docker pull ghcr.nju.edu.cn/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
 
             # 本次特定版本
-            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
+            docker pull ghcr.nju.edu.cn/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
             ```
           files: |
             docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
