@@ -10,7 +10,7 @@ from watchdog.events import FileSystemEventHandler
 import logging
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # 创建Flask应用实例，设置模板文件夹路径
@@ -28,7 +28,7 @@ cache_lock = Lock()
 limiter = Limiter(
     app=app,  # 使用关键字参数
     key_func=get_remote_address,
-    default_limits=["50 per hour"],
+    default_limits=["500000000 per hour"],
     storage_uri="memory://"
 )
 
@@ -417,12 +417,12 @@ if __name__ == '__main__':
     # 检查每个目录和文件
     for base, files in required_files.items():
         if not os.path.isdir(base):
-            logger.fatal(f"致命错误：目录不存在 {base}")
+            logger.fatal("致命错误：目录不存在 {base}")
             exit(1)
         for f in files:
             path = os.path.join(base, f)
             if not os.path.isfile(path):
-                logger.fatal(f"致命错误：文件不存在 {path}")
+                logger.fatal("致命错误：文件不存在 {path}")
                 exit(1)
         # 打印目录访问权限
         logger.info(f"目录验证通过：{base} (权限: {'可读' if os.access(base, os.R_OK) else '不可读'})")
