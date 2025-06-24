@@ -1,6 +1,6 @@
 name: Auto-Deploy
 
-on:
+on: workflow_dispatch
   push:
     branches: [ "main" ]
 
