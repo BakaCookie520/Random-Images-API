@@ -8,10 +8,10 @@ on:
 jobs:
   build-push-and-release:
     runs-on: ubuntu-latest
-    if: contains(join(github.event.commits.*.message, ' '), 'autorelease pls')
-    permissions:
-      contents: write
-      packages: write
+    # 修复条件判断：允许手动触发
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      contains(join(github.event.commits.*.message, ' '), 'autorelease')
 
     steps:
       - name: Checkout code
