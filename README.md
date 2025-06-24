@@ -34,7 +34,7 @@ random-image-api.bakacookie520.top/pc
 
   (1)拉取镜像
   
-    docker pull ghcr.io/bakacookie520/random-images-api:latest 
+    docker pull ghcr.nju.edu.cn/bakacookie520/random-images-api:latest 
      
   (2)启动
   

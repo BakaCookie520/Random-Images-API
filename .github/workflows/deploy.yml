@@ -1,20 +1,22 @@
 name: Auto-Deploy
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
 
 jobs:
   build-push-and-release:
     runs-on: ubuntu-latest
-    if: contains(join(github.event.commits.*.message, ' '), 'autorelease pls')
-    permissions:
-      contents: write
-      packages: write
+    # 修复条件判断：允许手动触发
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      contains(join(github.event.commits.*.message, ' '), 'autorelease')
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
       - name: Lowercase Repository Owner
         id: lowercase-owner
@@ -89,10 +91,10 @@ jobs:
             #### 从 GHCR 拉取
             ```bash
             # 最新稳定版
-            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
+            docker pull ghcr.nju.edu.cn/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
 
             # 本次特定版本
-            docker pull ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
+            docker pull ghcr.nju.edu.cn/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
             ```
           files: |
             docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
