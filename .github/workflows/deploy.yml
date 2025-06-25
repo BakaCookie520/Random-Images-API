@@ -8,14 +8,19 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout code with token
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
@@ -57,7 +62,7 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git tag -a "${{ steps.metadata.outputs.TAG_NAME }}" -m "Auto release"
-          git push origin "${{ steps.metadata.outputs.TAG_NAME }}"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "${{ steps.metadata.outputs.TAG_NAME }}"
 
       - name: Automatic compilation
         run: |
