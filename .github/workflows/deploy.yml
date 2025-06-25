@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ "main" ]
+    if: "contains(github.event.head_commit.message, 'autorelease')"
 
 jobs:
   build:
@@ -11,10 +12,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # 修复条件判断：允许手动触发
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      contains(join(github.event.commits.*.message, ' '), 'autorelease')
 
     steps:
       - name: Checkout code
@@ -38,12 +35,10 @@ jobs:
       - name: Generate Metadata
         id: metadata
         run: |
-          # 精确获取 7 位短 SHA
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           
-          # 获取系统架构
           if [ "$RUNNER_OS" == "Windows" ]; then
             ARCH=$env:PROCESSOR_ARCHITECTURE
           else
@@ -66,41 +61,34 @@ jobs:
 
       - name: Automatic compilation
         run: |
-          # 根据平台设置输出文件名
           if [ "$RUNNER_OS" == "Windows" ]; then
             OUTPUT_NAME="random-images-api-windows-${{ steps.metadata.outputs.ARCH }}-${{ steps.metadata.outputs.TIMESTAMP }}.exe"
           else
             OUTPUT_NAME="random-images-api-linux-${{ steps.metadata.outputs.ARCH }}-${{ steps.metadata.outputs.TIMESTAMP }}"
           fi
           
-          # 编译并重命名
           pyinstaller -F -i static/favicon.ico --distpath ./dist --name "$OUTPUT_NAME" main.py
           
-          # 为 Linux 可执行文件添加权限
           if [ "$RUNNER_OS" != "Windows" ]; then
             chmod +x ./dist/$OUTPUT_NAME
           fi
           
-          # 创建上传目录
           mkdir -p ./executables
           mv ./dist/$OUTPUT_NAME ./executables/
 
-      # 仅 Windows 需要额外处理路径
       - name: Fix Windows Path (Windows only)
         if: runner.os == 'Windows'
         run: |
-          # 替换路径分隔符
           (Get-Content .\executables\*.exe) | ForEach-Object { $_ -replace 'static\\', 'static/' } | Set-Content .\executables\fixed.exe
           Move-Item -Force .\executables\fixed.exe .\executables\random-images-api-windows-${{ steps.metadata.outputs.ARCH }}-${{ steps.metadata.outputs.TIMESTAMP }}.exe
 
       - name: Upload Executables
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: executables-${{ runner.os }}
           path: ./executables/
           retention-days: 1
 
-      # 仅在一个平台上构建 Docker 镜像（避免重复构建）
       - name: Build Docker Image (Linux only)
         if: runner.os == 'Linux'
         run: |
@@ -114,6 +102,14 @@ jobs:
           mkdir -p ./docker-images
           docker save random-images-api:${{ steps.metadata.outputs.VERSION }} \
             -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
+
+      - name: Upload Docker Image (Linux only)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
+          retention-days: 1
 
       - name: Login to GHCR (Linux only)
         if: runner.os == 'Linux'
@@ -132,15 +128,16 @@ jobs:
           docker push $GHCR_IMAGE:latest
           docker push $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
 
-  # 创建 Release 的独立任务
   create-release:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+          pattern: '*'
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -168,6 +165,6 @@ jobs:
             docker pull ghcr.nju.edu.cn/${{ needs.build.outputs.lowercase-owner.REPO_OWNER_LOWER }}/random-images-api:${{ needs.build.outputs.metadata.VERSION }}
             ```
           files: |
-            artifacts/docker-images/image-*.tar
+            artifacts/docker-image/image-*.tar
             artifacts/executables-ubuntu-latest/random-images-api-linux-*
             artifacts/executables-windows-latest/random-images-api-windows-*
