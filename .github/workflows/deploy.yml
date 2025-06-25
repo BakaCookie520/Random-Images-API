@@ -16,11 +16,19 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # 修复 Windows 平台检出问题
       - name: Checkout code with token
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+          # 添加重试机制
+          retries: 3
+          # 设置更长的超时时间
+          fetch-timeout: 300
+          # 禁用垃圾回收
+          disable-garbage-collection: true
+          # 仅获取必要的历史记录
+          fetch-depth: 1
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
