@@ -6,17 +6,28 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-push-and-release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     # 修复条件判断：允许手动触发
     if: |
       github.event_name == 'workflow_dispatch' || 
       contains(join(github.event.commits.*.message, ' '), 'autorelease')
 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+
+      - name: Installation environment
+        run: |
+          pip install pyinstaller
 
       - name: Lowercase Repository Owner
         id: lowercase-owner
@@ -32,10 +43,19 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           
+          # 获取系统架构
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ARCH=$env:PROCESSOR_ARCHITECTURE
+          else
+            ARCH=$(uname -m)
+          fi
+          
           echo "VERSION=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "TAG_NAME=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_OUTPUT
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT  # 新增输出
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "ARCH=$ARCH" >> $GITHUB_OUTPUT
 
       - name: Create Tag
         run: |
@@ -44,26 +64,67 @@ jobs:
           git tag -a "${{ steps.metadata.outputs.TAG_NAME }}" -m "Auto release"
           git push origin "${{ steps.metadata.outputs.TAG_NAME }}"
 
-      - name: Build Docker Image
+      - name: Automatic compilation
+        run: |
+          # 根据平台设置输出文件名
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            OUTPUT_NAME="random-images-api-windows-${{ steps.metadata.outputs.ARCH }}-${{ steps.metadata.outputs.TIMESTAMP }}.exe"
+          else
+            OUTPUT_NAME="random-images-api-linux-${{ steps.metadata.outputs.ARCH }}-${{ steps.metadata.outputs.TIMESTAMP }}"
+          fi
+          
+          # 编译并重命名
+          pyinstaller -F -i static/favicon.ico --distpath ./dist --name "$OUTPUT_NAME" main.py
+          
+          # 为 Linux 可执行文件添加权限
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            chmod +x ./dist/$OUTPUT_NAME
+          fi
+          
+          # 创建上传目录
+          mkdir -p ./executables
+          mv ./dist/$OUTPUT_NAME ./executables/
+
+      # 仅 Windows 需要额外处理路径
+      - name: Fix Windows Path (Windows only)
+        if: runner.os == 'Windows'
+        run: |
+          # 替换路径分隔符
+          (Get-Content .\executables\*.exe) | ForEach-Object { $_ -replace 'static\\', 'static/' } | Set-Content .\executables\fixed.exe
+          Move-Item -Force .\executables\fixed.exe .\executables\random-images-api-windows-${{ steps.metadata.outputs.ARCH }}-${{ steps.metadata.outputs.TIMESTAMP }}.exe
+
+      - name: Upload Executables
+        uses: actions/upload-artifact@v3
+        with:
+          name: executables-${{ runner.os }}
+          path: ./executables/
+          retention-days: 1
+
+      # 仅在一个平台上构建 Docker 镜像（避免重复构建）
+      - name: Build Docker Image (Linux only)
+        if: runner.os == 'Linux'
         run: |
           docker build \
             -t random-images-api:latest \
             -t random-images-api:${{ steps.metadata.outputs.VERSION }} .
 
-      - name: Export Docker Image
+      - name: Export Docker Image (Linux only)
+        if: runner.os == 'Linux'
         run: |
           mkdir -p ./docker-images
           docker save random-images-api:${{ steps.metadata.outputs.VERSION }} \
             -o ./docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
 
-      - name: Login to GHCR
+      - name: Login to GHCR (Linux only)
+        if: runner.os == 'Linux'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push to GHCR
+      - name: Push to GHCR (Linux only)
+        if: runner.os == 'Linux'
         run: |
           GHCR_IMAGE="ghcr.io/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api"
           docker tag random-images-api:latest $GHCR_IMAGE:latest
@@ -71,30 +132,42 @@ jobs:
           docker push $GHCR_IMAGE:latest
           docker push $GHCR_IMAGE:${{ steps.metadata.outputs.VERSION }}
 
+  # 创建 Release 的独立任务
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.metadata.outputs.TAG_NAME }}
-          name: "Release ${{ steps.metadata.outputs.VERSION }}"
+          tag_name: ${{ needs.build.outputs.metadata.TAG_NAME }}
+          name: "Release ${{ needs.build.outputs.metadata.VERSION }}"
           body: |
             ### 构建信息
-            - **版本**: ${{ steps.metadata.outputs.VERSION }}
-            - **时间**: ${{ steps.metadata.outputs.BUILD_DATE }}
-            - **提交**: [${{ steps.metadata.outputs.SHORT_SHA }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            - **版本**: ${{ needs.build.outputs.metadata.VERSION }}
+            - **时间**: ${{ needs.build.outputs.metadata.BUILD_DATE }}
+            - **提交**: [${{ needs.build.outputs.metadata.SHORT_SHA }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
 
             ### 镜像使用
             #### 从附件加载
             ```bash
-            docker load -i image-${{ steps.metadata.outputs.VERSION }}.tar
+            docker load -i image-${{ needs.build.outputs.metadata.VERSION }}.tar
             ```
 
             #### 从 GHCR 拉取
             ```bash
             # 最新稳定版
-            docker pull ghcr.nju.edu.cn/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:latest
+            docker pull ghcr.nju.edu.cn/${{ needs.build.outputs.lowercase-owner.REPO_OWNER_LOWER }}/random-images-api:latest
 
             # 本次特定版本
-            docker pull ghcr.nju.edu.cn/${{ steps.lowercase-owner.outputs.REPO_OWNER_LOWER }}/random-images-api:${{ steps.metadata.outputs.VERSION }}
+            docker pull ghcr.nju.edu.cn/${{ needs.build.outputs.lowercase-owner.REPO_OWNER_LOWER }}/random-images-api:${{ needs.build.outputs.metadata.VERSION }}
             ```
           files: |
-            docker-images/image-${{ steps.metadata.outputs.VERSION }}.tar
+            artifacts/docker-images/image-*.tar
+            artifacts/executables-ubuntu-latest/random-images-api-linux-*
+            artifacts/executables-windows-latest/random-images-api-windows-*
