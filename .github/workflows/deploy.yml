@@ -1,17 +1,16 @@
 name: Auto-Deploy
 
 on:
-  workflow_dispatch:
   push:
     branches: [ "main" ]
 
 jobs:
   build-push-and-release:
     runs-on: ubuntu-latest
-    # 修复条件判断：允许手动触发
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      contains(join(github.event.commits.*.message, ' '), 'autorelease')
+    if: contains(join(github.event.commits.*.message, ' '), 'autorelease pls')
+    permissions:
+      contents: write
+      packages: write
 
     steps:
       - name: Checkout code
