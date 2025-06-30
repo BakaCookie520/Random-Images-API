@@ -340,29 +340,41 @@ def serve_image(folder, filename):
     )
 
 
+
 class FolderChangeHandler(FileSystemEventHandler):
-    """增强的文件系统事件处理器：处理所有变化事件"""
+    """增强的文件系统事件处理器：只处理删除和新建事件"""
 
-    def on_any_event(self, event):
-        """处理所有文件系统事件"""
+    def on_deleted(self, event):
+        """处理文件删除事件"""
+        if not event.is_directory:
+            self._handle_file_event(os.path.dirname(event.src_path))
+
+    def on_created(self, event):
+        """处理文件创建事件"""
+        if not event.is_directory:
+            self._handle_file_event(os.path.dirname(event.src_path))
+
+    def on_moved(self, event):
+        """处理文件移动事件（视为删除+新建）"""
+        if not event.is_directory:
+            # 源文件被删除
+            self._handle_file_event(os.path.dirname(event.src_path))
+            # 目标文件被创建
+            self._handle_file_event(os.path.dirname(event.dest_path))
+
+    def _handle_file_event(self, folder_path):
+        """处理文件事件：使父目录缓存失效"""
         try:
-            if event.is_directory:
-                # 目录事件：使整个目录缓存失效
-                rel_path = os.path.relpath(event.src_path, IMAGE_BASE)
-                self._invalidate_cache(rel_path, event.event_type)
-            else:
-                # 文件事件：使父目录缓存失效
-                folder = os.path.relpath(os.path.dirname(event.src_path), IMAGE_BASE)
-                self._invalidate_cache(folder, event.event_type)
+            # 获取相对于IMAGE_BASE的文件夹路径
+            rel_path = os.path.relpath(folder_path, IMAGE_BASE)
+            # 使缓存失效
+            with cache_lock:
+                if rel_path in folder_cache:
+                    logger.info(f"文件变化，刷新缓存: {rel_path}")
+                    del folder_cache[rel_path]
         except Exception as e:
-            logger.error(f"处理文件系统事件时出错: {str(e)}")
+            logger.error(f"处理文件事件时出错: {str(e)}")
 
-    def _invalidate_cache(self, folder, action):
-        """使指定文件夹的缓存失效"""
-        with cache_lock:
-            if folder in folder_cache:
-                logger.info(f"缓存失效: {folder} ({action})")
-                del folder_cache[folder]
 
 
 # 创建文件系统观察者
@@ -417,12 +429,12 @@ if __name__ == '__main__':
     # 检查每个目录和文件
     for base, files in required_files.items():
         if not os.path.isdir(base):
-            logger.fatal("致命错误：目录不存在 {base}")
+            logger.fatal(f"致命错误：目录不存在 {base}")
             exit(1)
         for f in files:
             path = os.path.join(base, f)
             if not os.path.isfile(path):
-                logger.fatal("致命错误：文件不存在 {path}")
+                logger.fatal(f"致命错误：文件不存在 {path}")
                 exit(1)
         # 打印目录访问权限
         logger.info(f"目录验证通过：{base} (权限: {'可读' if os.access(base, os.R_OK) else '不可读'})")
@@ -450,3 +462,4 @@ if __name__ == '__main__':
         observer.stop()  # 停止监控
         observer.join()  # 等待监控线程结束
         logger.info("服务器已停止")
+        
