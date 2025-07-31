@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片浏览器 - {{ folder }}</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --secondary-color: #e0f7fa;
+            --secondary-hover: #b2ebf2;
+            --border-radius: 8px;
+            --transition-speed: 0.3s;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --card-shadow: rgba(0, 0, 0, 0.3);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #2c3e50;
+            --secondary-hover: #34495e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color var(--transition-speed) ease, 
+                        color var(--transition-speed) ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 0 10px var(--card-shadow);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            padding: 8px 15px;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .back-link:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            padding: 5px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .image-card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: 0 0 10px var(--card-shadow);
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .image-container {
+            height: 200px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .image-card:hover .image-container img {
+            transform: scale(1.05);
+        }
+
+        .image-info {
+            padding: 15px;
+            text-align: center;
+        }
+
+        .image-name {
+            font-size: 0.9em;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .view-button {
+            display: block;
+            margin-top: 10px;
+            padding: 8px 0;
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: var(--border-radius);
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .view-button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+        }
+
+        .modal-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .modal-image {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-image.loaded {
+            opacity: 1;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1010;
+        }
+
+        .nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            z-index: 1010;
+        }
+
+        .prev {
+            left: 20px;
+        }
+
+        .next {
+            right: 20px;
+        }
+
+        .image-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            z-index: 1010;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 1005;
+        }
+
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            color: var(--text-color);
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .gallery {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            .image-container {
+                height: 150px;
+            }
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ folder }} - 图片浏览器</h1>
+        <div class="header-actions">
+            <a href="/" class="back-link">返回主页</a>
+            <button id="themeToggle" class="theme-toggle" title="切换深色/浅色模式">🌓</button>
+        </div>
+    </div>
+
+    <div class="gallery">
+        {% for image in images %}
+        <div class="image-card">
+            <div class="image-container">
+                <img src="/{{ folder }}/{{ image }}" alt="{{ image }}" loading="lazy">
+            </div>
+            <div class="image-info">
+                <p class="image-name">{{ image }}</p>
+                <a href="#" class="view-button" data-image="/{{ folder }}/{{ image }}" data-index="{{ loop.index0 }}">查看原图</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="footer">
+        <p>&copy; <span id="currentYear"></span> Random Images API | 共 {{ images|length }} 张图片</p>
+    </div>
+
+    <div id="imageModal" class="modal">
+        <span class="close">&times;</span>
+        <div class="nav-button prev">&lt;</div>
+        <div class="nav-button next">&gt;</div>
+        <div class="modal-content">
+            <div class="loading">加载中...</div>
+            <img class="modal-image" id="modalImage">
+        </div>
+        <div class="image-counter">
+            <span id="currentImage">1</span> / <span id="totalImages">{{ images|length }}</span>
+        </div>
+    </div>
+
+    <script>
+        // 设置当前年份
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        
+        // 主题切换功能
+        const themeToggle = document.getElementById('themeToggle');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        // 检查本地存储中的主题设置
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        } else if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        } else if (prefersDarkScheme.matches) {
+            // 如果用户系统偏好深色模式
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        }
+        
+        // 主题切换事件
+        themeToggle.addEventListener('click', function() {
+            let theme;
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                theme = 'light';
+                this.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                theme = 'dark';
+                this.textContent = '🌞';
+            }
+            localStorage.setItem('theme', theme);
+        });
+        
+        // 获取模态框元素
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        const closeBtn = document.getElementsByClassName('close')[0];
+        const prevBtn = document.getElementsByClassName('prev')[0];
+        const nextBtn = document.getElementsByClassName('next')[0];
+        const currentImageSpan = document.getElementById('currentImage');
+        const loadingIndicator = document.querySelector('.loading');
+        
+        // 所有图片数据
+        const images = [
+            {% for image in images %}
+                {
+                    url: '/{{ folder }}/{{ image }}',
+                    name: '{{ image }}'
+                }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        let currentIndex = 0;
+        
+        // 打开模态框并显示图片
+        document.querySelectorAll('.view-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentIndex = parseInt(this.getAttribute('data-index'));
+                showImage(currentIndex);
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden'; // 防止背景滚动
+            });
+        });
+        
+        // 关闭模态框
+        closeBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+            document.body.style.overflow = ''; // 恢复背景滚动
+        });
+        
+        // 点击模态框背景也关闭
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = ''; // 恢复背景滚动
+            }
+        });
+        
+        // 上一张图片
+        prevBtn.addEventListener('click', function() {
+            currentIndex = (currentIndex - 1 + images.length) % images.length;
+            showImage(currentIndex);
+        });
+        
+        // 下一张图片
+        nextBtn.addEventListener('click', function() {
+            currentIndex = (currentIndex + 1) % images.length;
+            showImage(currentIndex);
+        });
+        
+        // 键盘导航
+        document.addEventListener('keydown', function(e) {
+            if (modal.style.display === 'block') {
+                if (e.key === 'ArrowLeft') {
+                    currentIndex = (currentIndex - 1 + images.length) % images.length;
+                    showImage(currentIndex);
+                } else if (e.key === 'ArrowRight') {
+                    currentIndex = (currentIndex + 1) % images.length;
+                    showImage(currentIndex);
+                } else if (e.key === 'Escape') {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = ''; // 恢复背景滚动
+                }
+            }
+        });
+        
+        // 显示指定索引的图片
+        function showImage(index) {
+            // 显示加载指示器
+            loadingIndicator.style.display = 'block';
+            modalImg.classList.remove('loaded');
+            
+            // 预加载图片
+            const img = new Image();
+            img.onload = function() {
+                modalImg.src = images[index].url;
+                modalImg.classList.add('loaded');
+                loadingIndicator.style.display = 'none';
+            };
+            img.onerror = function() {
+                loadingIndicator.textContent = '图片加载失败';
+                setTimeout(() => {
+                    loadingIndicator.textContent = '加载中...';
+                }, 2000);
+            };
+            img.src = images[index].url;
+            
+            currentImageSpan.textContent = index + 1;
+        }
+    </script>
+</body>
+</html>
