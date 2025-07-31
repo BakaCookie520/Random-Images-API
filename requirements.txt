@@ -2,3 +2,4 @@ Flask==2.2.5
 gevent
 watchdog==3.0.0
 Flask-Limiter==3.3.0
+Pillow==9.5.0

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 页面未找到</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #e0f7fa;
+            --secondary-hover: #b2ebf2;
+            --accent-color: #e74c3c;
+            --accent-hover: #c0392b;
+            --border-radius: 10px;
+            --transition-speed: 0.3s;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --card-shadow: rgba(0, 0, 0, 0.3);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #2c3e50;
+            --secondary-hover: #34495e;
+            --accent-color: #e74c3c;
+            --accent-hover: #c0392b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color var(--transition-speed) ease, 
+                        color var(--transition-speed) ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            padding: 5px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px var(--card-shadow);
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .error-code {
+            font-size: 8em;
+            font-weight: 700;
+            margin-bottom: 0.2em;
+            color: var(--accent-color);
+            line-height: 1;
+            position: relative;
+        }
+
+        .error-code::before {
+            content: "404";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1em;
+            color: var(--accent-color);
+            opacity: 0.05;
+            font-size: 12em;
+            z-index: -1;
+        }
+
+        .error-message {
+            font-size: 1.5em;
+            margin-bottom: 1.5em;
+            color: var(--text-color);
+        }
+
+        .categories-title {
+            font-size: 1.2em;
+            margin-bottom: 1em;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        .categories {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .category-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            padding: 8px 15px;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            transition: all var(--transition-speed) ease;
+            font-weight: 500;
+        }
+
+        .category-link:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-2px);
+        }
+
+        .home-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: white;
+            background-color: var(--primary-color);
+            text-decoration: none;
+            padding: 10px 25px;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .home-link:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .error-illustration {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .error-illustration svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .error-illustration .search-path {
+            stroke: var(--accent-color);
+        }
+
+        .error-illustration .magnifier-path {
+            fill: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+            .error-code {
+                font-size: 6em;
+            }
+            .error-message {
+                font-size: 1.2em;
+            }
+            .error-illustration {
+                width: 150px;
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button id="themeToggle" class="theme-toggle" title="切换深色/浅色模式">🌓</button>
+    </div>
+
+    <div class="container">
+        <div class="error-illustration">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="80" cy="80" r="50" fill="none" stroke-width="8" class="search-path" stroke-linecap="round" />
+                <rect x="120" y="115" width="15" height="60" rx="7.5" transform="rotate(-45 120 115)" class="magnifier-path" />
+                <path d="M70 60 L90 100 M60 70 L100 90" stroke="var(--accent-color)" stroke-width="6" stroke-linecap="round" />
+            </svg>
+        </div>
+        <h1 class="error-code">404</h1>
+        <p class="error-message">抱歉，您访问的页面不存在</p>
+        <p class="categories-title">您可以访问以下图片集合：</p>
+        <div class="categories">
+            {% for folder in subfolders %}
+                <a href="/{{ folder }}" class="category-link">{{ folder|capitalize }}</a>
+            {% endfor %}
+        </div>
+        <a href="/" class="home-link">返回主页</a>
+    </div>
+
+    <script>
+        // 主题切换功能
+        const themeToggle = document.getElementById('themeToggle');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        // 检查本地存储中的主题设置
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        } else if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        } else if (prefersDarkScheme.matches) {
+            // 如果用户系统偏好深色模式
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        }
+        
+        // 主题切换事件
+        themeToggle.addEventListener('click', function() {
+            let theme;
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                theme = 'light';
+                this.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                theme = 'dark';
+                this.textContent = '🌞';
+            }
+            localStorage.setItem('theme', theme);
+        });
+    </script>
+</body>
+</html>

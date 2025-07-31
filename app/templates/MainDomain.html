@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机图片API</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #e0f7fa;
+            --secondary-hover: #b2ebf2;
+            --accent-color: #9b59b6;
+            --accent-hover: #8e44ad;
+            --border-radius: 10px;
+            --transition-speed: 0.3s;
+            --preview-bg: #f0f0f0;
+            --count-color: #666;
+            --no-preview-color: #999;
+            --header-color: #2c3e50;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --card-shadow: rgba(0, 0, 0, 0.3);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #2c3e50;
+            --secondary-hover: #34495e;
+            --accent-color: #9b59b6;
+            --accent-hover: #8e44ad;
+            --preview-bg: #2a2a2a;
+            --count-color: #aaa;
+            --no-preview-color: #777;
+            --header-color: #3498db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color var(--transition-speed) ease, 
+                        color var(--transition-speed) ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            padding: 5px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        .container {
+            text-align: center;
+            padding: 30px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px var(--card-shadow);
+            width: 95%;
+            max-width: 1200px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.8em;
+            color: var(--header-color);
+            font-weight: 600;
+        }
+
+        p {
+            font-size: 1.2em;
+            margin-bottom: 1.5em;
+        }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            justify-items: center;
+            margin-top: 30px;
+        }
+
+        .category {
+            text-align: center;
+            width: 100%;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px var(--card-shadow);
+            overflow: hidden;
+            transition: transform var(--transition-speed) ease, 
+                        box-shadow var(--transition-speed) ease;
+        }
+
+        .category:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px var(--card-shadow);
+        }
+
+        .preview-container {
+            height: 180px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--preview-bg);
+            position: relative;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .category:hover .preview-image {
+            transform: scale(1.05);
+        }
+
+        .no-preview {
+            color: var(--no-preview-color);
+            font-size: 0.9em;
+        }
+
+        .folder-info {
+            padding: 15px;
+        }
+
+        .folder-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .image-count {
+            font-size: 0.85em;
+            color: var(--count-color);
+            margin-bottom: 15px;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 15px 15px;
+        }
+
+        .api-button, .browse-button {
+            padding: 10px 0;
+            border-radius: var(--border-radius);
+            text-align: center;
+            flex: 1;
+            margin: 0 5px;
+            font-weight: 500;
+            transition: all var(--transition-speed) ease;
+            text-decoration: none;
+        }
+
+        .api-button {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .api-button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .browse-button {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+
+        .browse-button:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            color: var(--text-color);
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .categories {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 15px;
+            }
+            .preview-container {
+                height: 150px;
+            }
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>随机图片API服务</h1>
+        <button id="themeToggle" class="theme-toggle" title="切换深色/浅色模式">🌓</button>
+    </div>
+
+    <div class="container">
+        <p>选择下方任意图片集合，获取随机图片或浏览全部内容</p>
+        <div class="categories">
+            {% for folder in subfolders %}
+                <div class="category">
+                    <div class="preview-container">
+                        {% if folder in folder_previews %}
+                            <img src="{{ folder_previews[folder]['data'] }}" alt="{{ folder }}" class="preview-image" loading="lazy">
+                        {% else %}
+                            <div class="no-preview">无预览图</div>
+                        {% endif %}
+                    </div>
+                    <div class="folder-info">
+                        <div class="folder-name">{{ folder|capitalize }}</div>
+                        {% if folder in folder_previews %}
+                            <div class="image-count">{{ folder_previews[folder]['count'] }} 张图片</div>
+                        {% endif %}
+                    </div>
+                    <div class="button-group">
+                        <a href="/{{ folder }}" class="api-button">随机API</a>
+                        <a href="/browse/{{ folder }}" class="browse-button">浏览</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>随机图片API服务 &copy; <span id="currentYear"></span> | 提供高质量随机图片</p>
+    </div>
+
+    <script>
+        // 设置当前年份
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        
+        // 主题切换功能
+        const themeToggle = document.getElementById('themeToggle');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        // 检查本地存储中的主题设置
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        } else if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        } else if (prefersDarkScheme.matches) {
+            // 如果用户系统偏好深色模式
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        }
+        
+        // 主题切换事件
+        themeToggle.addEventListener('click', function() {
+            let theme;
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                theme = 'light';
+                this.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                theme = 'dark';
+                this.textContent = '🌞';
+            }
+            localStorage.setItem('theme', theme);
+        });
+    </script>
+</body>
+</html>
