@@ -3,21 +3,22 @@
 """
 import os
 import logging
+import datetime
 from flask import Flask, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from .config.config import Config
 from .routes import register_blueprints
 from .utils.file_monitor import setup_file_monitor
-from .utils.security import cleanup_bans, is_banned
+from .utils.security import cleanup_bans, is_banned, get_real_ip
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# 创建限流器
+# 创建限流器，使用优化后的IP获取函数
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=get_real_ip,  # 使用自定义函数获取真实IP
     default_limits=["500 per hour"],
     storage_uri="memory://"
 )
@@ -41,6 +42,12 @@ def create_app(config_class=Config):
     # 初始化限流器
     limiter.init_app(app)
     
+    # 添加自定义过滤器
+    @app.template_filter('datetime')
+    def format_datetime(timestamp):
+        """将时间戳转换为可读的日期时间格式"""
+        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    
     # 注册蓝图
     register_blueprints(app)
     
@@ -48,7 +55,8 @@ def create_app(config_class=Config):
     @app.before_request
     def check_ban_status():
         """在每次请求前检查当前路径是否被封禁"""
-        client_ip = request.remote_addr
+        # 使用优化后的get_real_ip函数获取真实IP
+        client_ip = get_real_ip()
         current_path = request.path
         banned, remaining, end_time = is_banned(client_ip, current_path, config_class.BAN_DURATION)
 
@@ -64,8 +72,15 @@ def create_app(config_class=Config):
                                 client_ip=client_ip,
                                 target_url=current_path), 429
 
-        # 每次请求后清理过期封禁
-        cleanup_bans()
+        # 定期清理过期封禁（不是每次请求都清理，减少性能开销）
+        # 使用请求计数器，每100个请求清理一次
+        if hasattr(app, 'request_count'):
+            app.request_count += 1
+            if app.request_count >= 100:
+                cleanup_bans()
+                app.request_count = 0
+        else:
+            app.request_count = 1
     
     # 设置响应后处理函数
     @app.after_request
