@@ -127,16 +127,18 @@ def setup_logger(app, config):
     
     # 设置Flask应用日志处理器
     app.logger.handlers = []
+    app.logger.propagate = False  # 防止日志传播到根记录器
     for handler in logger.handlers:
         app.logger.addHandler(handler)
     
     # 设置Werkzeug日志处理器
     werkzeug_logger = logging.getLogger('werkzeug')
     werkzeug_logger.handlers = []
+    werkzeug_logger.propagate = False  # 防止日志传播到根记录器
     for handler in logger.handlers:
         werkzeug_logger.addHandler(handler)
     
-    # 记录应用启动信息
-    app.logger.info(f"Random Images API 启动于 {'开发' if config.DEBUG else '生产'}环境")
+    # 记录应用启动信息（只记录一次）
+    logger.info(f"Random Images API 启动于 {'开发' if config.DEBUG else '生产'}环境")
     
     return logger

@@ -243,7 +243,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>随机图片API服务</h1>
+        <h1>随机图片API</h1>
         <button id="themeToggle" class="theme-toggle" title="切换深色/浅色模式">🌓</button>
     </div>
 
@@ -275,13 +275,10 @@
     </div>
 
     <div class="footer">
-        <p>随机图片API服务 &copy; <span id="currentYear"></span> | 提供高质量随机图片</p>
+        <p></p>
     </div>
 
     <script>
-        // 设置当前年份
-        document.getElementById('currentYear').textContent = new Date().getFullYear();
-        
         // 主题切换功能
         const themeToggle = document.getElementById('themeToggle');
         const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');

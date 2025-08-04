@@ -9,6 +9,7 @@ from .cache import invalidate_cache
 
 # 配置日志
 logger = logging.getLogger(__name__)
+logger.propagate = True  # 允许日志传播到根记录器，但不添加额外的处理器
 
 class FolderChangeHandler(FileSystemEventHandler):
     """

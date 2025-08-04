@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ folder_name }} - 图片管理</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #e0f7fa;
+            --secondary-hover: #b2ebf2;
+            --danger-color: #e74c3c;
+            --danger-hover: #c0392b;
+            --success-color: #2ecc71;
+            --success-hover: #27ae60;
+            --border-radius: 10px;
+            --transition-speed: 0.3s;
+            --border-color: #ddd;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --card-shadow: rgba(0, 0, 0, 0.3);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #2c3e50;
+            --secondary-hover: #34495e;
+            --danger-color: #e74c3c;
+            --danger-hover: #c0392b;
+            --success-color: #2ecc71;
+            --success-hover: #27ae60;
+            --border-color: #444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color var(--transition-speed) ease, 
+                        color var(--transition-speed) ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            padding: 5px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        h1 {
+            font-size: 2em;
+            color: var(--primary-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px var(--card-shadow);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.5em;
+            color: var(--primary-color);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: var(--success-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .image-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .image-item {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 8px var(--card-shadow);
+            overflow: hidden;
+            transition: transform var(--transition-speed) ease, 
+                        box-shadow var(--transition-speed) ease;
+        }
+
+        .image-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px var(--card-shadow);
+        }
+
+        .image-content {
+            padding: 15px;
+        }
+
+        .image-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+
+        .image-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .image-preview {
+            height: 180px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--secondary-color);
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .image-item:hover .image-preview img {
+            transform: scale(1.05);
+        }
+
+        .upload-form {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 16px;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+        }
+
+        .alert-success {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: var(--success-color);
+        }
+
+        .alert-danger {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--danger-color);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--primary-color);
+            text-decoration: none;
+            margin-right: 20px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: var(--primary-color);
+        }
+
+        .close {
+            color: var(--text-color);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .file-input-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-container input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+        }
+
+        .file-name {
+            margin-left: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        @media (max-width: 768px) {
+            .image-list {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header-actions {
+                margin-top: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ folder_name }} - 图片管理</h1>
+            <div class="header-actions">
+                <button id="themeToggle" class="theme-toggle">🌓</button>
+            </div>
+        </div>
+
+        {% if message %}
+        <div class="alert {{ 'alert-success' if success else 'alert-danger' }}">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <!-- 上传图片表单 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">上传图片</h2>
+            </div>
+            <form action="{{ url_for('admin.upload_image', folder_name=folder_name) }}" method="post" enctype="multipart/form-data" class="upload-form">
+                <div class="form-group">
+                    <div class="file-input-container">
+                        <label for="image_file" class="file-input-label">选择图片文件</label>
+                        <input type="file" id="image_file" name="image_file" accept="image/*" required onchange="updateFileName(this)">
+                    </div>
+                    <span id="file-name" class="file-name"></span>
+                </div>
+                <button type="submit" class="btn btn-primary">上传</button>
+            </form>
+        </div>
+
+        <!-- 图片列表 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">图片列表</h2>
+            </div>
+            
+            {% if images %}
+            <div class="image-list">
+                {% for image in images %}
+                <div class="image-item">
+                    <div class="image-preview">
+                        <img src="{{ url_for('admin.get_image_thumbnail', folder_name=folder_name, image_name=image) }}" alt="{{ image }}" loading="lazy">
+                    </div>
+                    <div class="image-content">
+                        <div class="image-name">{{ image }}</div>
+                        <div class="image-actions">
+                            <a href="{{ url_for('admin.download_image', folder_name=folder_name, image_name=image) }}" class="btn btn-secondary" download>下载</a>
+                            <button class="btn btn-danger" onclick="confirmDeleteImage('{{ image }}')">删除</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>此图片集合中还没有图片，请上传一些图片。</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 导航链接 -->
+        <a href="{{ url_for('admin.index') }}" class="back-link">返回管理面板</a>
+        <a href="{{ url_for('main.serve_main_page') }}" class="back-link">返回首页</a>
+    </div>
+
+    <!-- 删除图片确认模态框 -->
+    <div id="deleteImageModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">确认删除</h3>
+                <span class="close" onclick="hideModal('deleteImageModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除图片 "<span id="imageToDelete"></span>" 吗？此操作不可恢复。</p>
+                <form id="deleteImageForm" action="{{ url_for('admin.delete_image', folder_name=folder_name) }}" method="post">
+                    <input type="hidden" id="delete_image_name" name="image_name">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('deleteImageModal')">取消</button>
+                <button class="btn btn-danger" onclick="document.getElementById('deleteImageForm').submit()">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 主题切换功能
+        const themeToggle = document.getElementById('themeToggle');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        // 检查本地存储中的主题设置
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        } else if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        } else if (prefersDarkScheme.matches) {
+            // 如果用户系统偏好深色模式
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        }
+        
+        // 主题切换事件
+        themeToggle.addEventListener('click', function() {
+            let theme;
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                theme = 'light';
+                this.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                theme = 'dark';
+                this.textContent = '🌞';
+            }
+            localStorage.setItem('theme', theme);
+        });
+
+        // 更新文件名显示
+        function updateFileName(input) {
+            const fileName = input.files[0] ? input.files[0].name : '';
+            document.getElementById('file-name').textContent = fileName;
+        }
+
+        // 模态框功能
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 确认删除图片
+        function confirmDeleteImage(imageName) {
+            document.getElementById('imageToDelete').textContent = imageName;
+            document.getElementById('delete_image_name').value = imageName;
+            showModal('deleteImageModal');
+        }
+
+        // 关闭模态框当点击模态框外部
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let i = 0; i < modals.length; i++) {
+                if (event.target === modals[i]) {
+                    modals[i].style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

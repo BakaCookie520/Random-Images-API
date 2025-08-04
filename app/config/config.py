@@ -16,7 +16,7 @@ class Config:
     # 图像相关配置
     IMAGE_BASE = 'images'
     IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
-    THUMBNAIL_SIZE = (200, 200)
+    THUMBNAIL_SIZE = (300, 300)  # 管理面板中的缩略图尺寸
     
     # 限流相关配置
     DEFAULT_LIMITS = ["500 per hour"]

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片管理后台</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --card-shadow: rgba(0, 0, 0, 0.1);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #e0f7fa;
+            --secondary-hover: #b2ebf2;
+            --danger-color: #e74c3c;
+            --danger-hover: #c0392b;
+            --success-color: #2ecc71;
+            --success-hover: #27ae60;
+            --border-radius: 10px;
+            --transition-speed: 0.3s;
+            --border-color: #ddd;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --card-shadow: rgba(0, 0, 0, 0.3);
+            --primary-color: #3498db;
+            --primary-hover: #2980b9;
+            --secondary-color: #2c3e50;
+            --secondary-hover: #34495e;
+            --danger-color: #e74c3c;
+            --danger-hover: #c0392b;
+            --success-color: #2ecc71;
+            --success-hover: #27ae60;
+            --border-color: #444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color var(--transition-speed) ease, 
+                        color var(--transition-speed) ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            padding: 5px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        h1 {
+            font-size: 2em;
+            color: var(--primary-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px var(--card-shadow);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.5em;
+            color: var(--primary-color);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: var(--success-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .folder-list, .image-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .folder-item, .image-item {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 8px var(--card-shadow);
+            overflow: hidden;
+            transition: transform var(--transition-speed) ease, 
+                        box-shadow var(--transition-speed) ease;
+        }
+
+        .folder-item:hover, .image-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px var(--card-shadow);
+        }
+
+        .folder-content, .image-content {
+            padding: 15px;
+        }
+
+        .folder-name, .image-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+
+        .folder-actions, .image-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .image-preview {
+            height: 180px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--secondary-color);
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .image-item:hover .image-preview img {
+            transform: scale(1.05);
+        }
+
+        .upload-form {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 16px;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+        }
+
+        .alert-success {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: var(--success-color);
+        }
+
+        .alert-danger {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--danger-color);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .logout-btn {
+            color: var(--danger-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .logout-btn:hover {
+            text-decoration: underline;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: var(--primary-color);
+        }
+
+        .close {
+            color: var(--text-color);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .folder-list, .image-list {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header-actions {
+                margin-top: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>图片管理后台</h1>
+            <div class="header-actions">
+                <button id="themeToggle" class="theme-toggle">🌓</button>
+                <a href="{{ url_for('admin.logout') }}" class="logout-btn">退出登录</a>
+            </div>
+        </div>
+
+        {% if message %}
+        <div class="alert {{ 'alert-success' if success else 'alert-danger' }}">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <!-- 文件夹管理 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">图片集合管理</h2>
+                <button class="btn btn-primary" onclick="showModal('newFolderModal')">新建图片集合</button>
+            </div>
+            
+            <div class="folder-list">
+                {% for folder in folders %}
+                <div class="folder-item">
+                    <div class="folder-content">
+                        <div class="folder-name">{{ folder }}</div>
+                        <div class="folder-actions">
+                            <a href="{{ url_for('admin.view_folder', folder_name=folder) }}" class="btn btn-secondary">查看</a>
+                            <button class="btn btn-danger" onclick="confirmDeleteFolder('{{ folder }}')">删除</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 返回首页链接 -->
+        <a href="{{ url_for('main.serve_main_page') }}" class="back-link">返回首页</a>
+    </div>
+
+    <!-- 新建文件夹模态框 -->
+    <div id="newFolderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">新建图片集合</h3>
+                <span class="close" onclick="hideModal('newFolderModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="newFolderForm" action="{{ url_for('admin.create_folder') }}" method="post">
+                    <div class="form-group">
+                        <label for="folder_name">集合名称</label>
+                        <input type="text" id="folder_name" name="folder_name" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('newFolderModal')">取消</button>
+                <button class="btn btn-primary" onclick="document.getElementById('newFolderForm').submit()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除文件夹确认模态框 -->
+    <div id="deleteFolderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">确认删除</h3>
+                <span class="close" onclick="hideModal('deleteFolderModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除图片集合 "<span id="folderToDelete"></span>" 吗？此操作不可恢复，集合中的所有图片都将被删除。</p>
+                <form id="deleteFolderForm" action="{{ url_for('admin.delete_folder') }}" method="post">
+                    <input type="hidden" id="delete_folder_name" name="folder_name">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('deleteFolderModal')">取消</button>
+                <button class="btn btn-danger" onclick="document.getElementById('deleteFolderForm').submit()">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 主题切换功能
+        const themeToggle = document.getElementById('themeToggle');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        // 检查本地存储中的主题设置
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        } else if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        } else if (prefersDarkScheme.matches) {
+            // 如果用户系统偏好深色模式
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌞';
+        }
+        
+        // 主题切换事件
+        themeToggle.addEventListener('click', function() {
+            let theme;
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                theme = 'light';
+                this.textContent = '🌙';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                theme = 'dark';
+                this.textContent = '🌞';
+            }
+            localStorage.setItem('theme', theme);
+        });
+
+        // 模态框功能
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 确认删除文件夹
+        function confirmDeleteFolder(folderName) {
+            document.getElementById('folderToDelete').textContent = folderName;
+            document.getElementById('delete_folder_name').value = folderName;
+            showModal('deleteFolderModal');
+        }
+
+        // 关闭模态框当点击模态框外部
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let i = 0; i < modals.length; i++) {
+                if (event.target === modals[i]) {
+                    modals[i].style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

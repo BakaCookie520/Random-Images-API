@@ -4,6 +4,7 @@
 from .main import main_bp
 from .images import images_bp
 from .errors import errors_bp
+from .admin import admin_bp
 
 def register_blueprints(app):
     """
@@ -15,3 +16,4 @@ def register_blueprints(app):
     app.register_blueprint(main_bp)
     app.register_blueprint(images_bp)
     app.register_blueprint(errors_bp)
+    app.register_blueprint(admin_bp)
