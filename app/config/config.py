@@ -2,6 +2,7 @@
 配置类模块
 """
 import os
+import logging
 
 class Config:
     """基础配置类"""
@@ -37,14 +38,12 @@ class DevelopmentConfig(Config):
     """开发环境配置"""
     DEBUG = True
     
+    # 日志配置
+    LOG_LEVEL = logging.DEBUG
+    
     @classmethod
     def init_app(cls, app):
         Config.init_app(app)
-        
-        # 开发环境特定配置
-        import logging
-        logging.basicConfig(level=logging.INFO, 
-                           format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class ProductionConfig(Config):
@@ -55,29 +54,9 @@ class ProductionConfig(Config):
     # 生产环境可以调整限流策略
     DEFAULT_LIMITS = ["300 per hour"]
     
+    # 日志配置
+    LOG_LEVEL = logging.INFO
+    
     @classmethod
     def init_app(cls, app):
         Config.init_app(app)
-        
-        # 生产环境特定配置
-        import logging
-        from logging.handlers import RotatingFileHandler
-        
-        # 创建日志目录
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
-            
-        # 配置文件日志
-        file_handler = RotatingFileHandler('logs/random_images_api.log',
-                                          maxBytes=10485760,  # 10MB
-                                          backupCount=10)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s '
-            '[in %(pathname)s:%(lineno)d]'
-        ))
-        file_handler.setLevel(logging.INFO)
-        
-        # 添加到应用日志
-        app.logger.addHandler(file_handler)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('Random Images API 启动')

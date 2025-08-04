@@ -4,16 +4,17 @@
 import os
 import logging
 import datetime
-from flask import Flask, request
+import uuid
+from flask import Flask, request, g, has_request_context
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from .config.config import Config
 from .routes import register_blueprints
 from .utils.file_monitor import setup_file_monitor
 from .utils.security import cleanup_bans, is_banned, get_real_ip
+from .utils.logger import setup_logger
 
-# 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# 获取模块日志记录器
 logger = logging.getLogger(__name__)
 
 # 创建限流器，使用优化后的IP获取函数
@@ -39,6 +40,9 @@ def create_app(config_class=Config):
     # 应用配置
     app.config.from_object(config_class)
     
+    # 设置日志系统
+    setup_logger(app, config_class)
+    
     # 初始化限流器
     limiter.init_app(app)
     
@@ -53,8 +57,15 @@ def create_app(config_class=Config):
     
     # 设置请求前处理函数
     @app.before_request
-    def check_ban_status():
-        """在每次请求前检查当前路径是否被封禁"""
+    def before_request():
+        """请求前处理：生成请求ID并检查封禁状态"""
+        # 生成请求ID
+        g.request_id = request.headers.get('X-Request-ID') or str(uuid.uuid4())[:8]
+        
+        # 记录请求开始
+        access_logger = logging.getLogger('access')
+        access_logger.info(f"请求开始: {request.method} {request.path}")
+        
         # 使用优化后的get_real_ip函数获取真实IP
         client_ip = get_real_ip()
         current_path = request.path
@@ -63,6 +74,9 @@ def create_app(config_class=Config):
         if banned:
             # 清理过期封禁
             cleanup_bans()
+            
+            # 记录封禁日志
+            logger.warning(f"IP {client_ip} 访问 {current_path} 被封禁，剩余时间: {int(remaining)}秒")
 
             # 返回封禁页面
             from flask import render_template
@@ -84,8 +98,12 @@ def create_app(config_class=Config):
     
     # 设置响应后处理函数
     @app.after_request
-    def set_cache_control(response):
-        """响应后处理：根据CDN请求头动态设置缓存策略"""
+    def after_request(response):
+        """响应后处理：设置缓存策略并记录请求完成"""
+        # 设置请求ID响应头
+        response.headers['X-Request-ID'] = g.get('request_id', '-')
+        
+        # 设置缓存控制
         if response.status_code == 200:
             # 检查请求头中是否存在 CDN: CDNRequest
             if request.headers.get('CDN') == 'CDNRequest':
@@ -94,6 +112,11 @@ def create_app(config_class=Config):
             else:
                 # 非CDN请求：强制每次验证
                 response.headers['Cache-Control'] = 'no-cache'
+        
+        # 记录请求完成
+        access_logger = logging.getLogger('access')
+        access_logger.info(f"请求完成: {request.method} {request.path} - 状态码: {response.status_code}")
+        
         return response
     
     # 启动文件监控

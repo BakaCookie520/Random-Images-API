@@ -1,5 +1,5 @@
-Flask==2.2.5
-gevent
-watchdog==3.0.0
-Flask-Limiter==3.3.0
-Pillow==9.5.0
+flask==2.3.3
+flask-limiter==3.5.0
+gevent==23.9.1
+Pillow==11.3.0
+watchdog==6.0.0

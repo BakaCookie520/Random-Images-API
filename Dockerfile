@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:${PORT}/ || exit 1
 
 # 设置容器启动命令
-CMD ["python", "-u", "run.py"]
+CMD ["python", "-u", "run.py", "--env=production"]
