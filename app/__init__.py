@@ -5,7 +5,8 @@ import os
 import logging
 import datetime
 import uuid
-from flask import Flask, request, g, has_request_context
+import secrets
+from flask import Flask, request, g, has_request_context, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from .config.config import Config
@@ -39,6 +40,10 @@ def create_app(config_class=Config):
     
     # 应用配置
     app.config.from_object(config_class)
+    
+    # 设置会话密钥
+    if not app.config.get('SECRET_KEY'):
+        app.config['SECRET_KEY'] = secrets.token_hex(16)
     
     # 设置日志系统
     setup_logger(app, config_class)
