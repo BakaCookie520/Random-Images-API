@@ -21,9 +21,6 @@ COPY app/ ./app/
 # 创建必要的目录
 RUN mkdir -p images logs static
 
-# 复制静态文件
-COPY static/ ./static/
-
 # 设置权限
 RUN chmod -R 755 /app
 

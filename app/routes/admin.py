@@ -12,7 +12,7 @@ from ..utils.security import get_safe_path
 from ..config.config import Config
 
 # 创建蓝图
-admin_bp = Blueprint('admin', __name__, url_prefix='/@manage')
+admin_bp = Blueprint('admin', __name__, url_prefix='/manage')
 
 @admin_bp.route('/')
 def index():

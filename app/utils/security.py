@@ -209,8 +209,8 @@ def get_real_ip():
     """
     # 按优先级检查各种代理头
     headers_to_check = [
+        'X-Real-IP',         # 优先检查X-Real-IP
         'X-Forwarded-For',
-        'X-Real-IP',
         'CF-Connecting-IP',  # Cloudflare
         'True-Client-IP',    # Akamai/Cloudflare
         'X-Client-IP',       # Amazon CloudFront
