@@ -49,7 +49,7 @@ def init_folder_cache(image_base, folder, image_extensions):
 
 def get_random_image(image_base, folder, image_extensions):
     """
-    获取文件夹中的随机图像
+    获取文件夹中的随机图像（真随机）
     
     Args:
         image_base: 图像基础目录
@@ -60,23 +60,14 @@ def get_random_image(image_base, folder, image_extensions):
         随机图像文件名或None
     """
     with cache_lock:  # 线程安全操作
-        # 如果缓存中没有该文件夹
+        # 如果缓存中没有该文件夹，初始化缓存
         if folder not in folder_cache:
-            images = init_folder_cache(image_base, folder, image_extensions)  # 初始化缓存
+            images = init_folder_cache(image_base, folder, image_extensions)
             if not images:
                 return None  # 无有效图像
-
-            # 创建基于文件夹和时间的随机种子
-            seed = hash(f"{folder}-{time.time()}") % (2 ** 32)
-            random.seed(seed)
-            shuffled = images.copy()
-            random.shuffle(shuffled)  # 随机打乱图像列表
-
-            # 将打乱后的列表存入缓存
+            # 存储图像列表到缓存
             folder_cache[folder] = {
-                'images': shuffled,
-                'index': 0,  # 当前索引位置
-                'seed': seed  # 使用的随机种子
+                'images': images
             }
 
         cache = folder_cache[folder]
@@ -84,13 +75,55 @@ def get_random_image(image_base, folder, image_extensions):
             del folder_cache[folder]  # 空列表则删除缓存项
             return None
 
-        # 获取当前图像并更新索引
-        current_index = cache['index']
-        image = cache['images'][current_index]
-        # 循环索引（到达末尾后回到开头）
-        cache['index'] = (current_index + 1) % len(cache['images'])
+        # 真随机：每次都随机选择一个图像
+        return random.choice(cache['images'])
+
+
+def get_random_image_from_all_folders(image_base, image_extensions):
+    """
+    从所有文件夹中随机选择一张图片
+    
+    Args:
+        image_base: 图像基础目录
+        image_extensions: 支持的图像扩展名列表
         
-        return image
+    Returns:
+        (文件夹名称, 图像文件名) 或 (None, None)
+    """
+    with cache_lock:
+        # 获取所有子文件夹
+        try:
+            subfolders = [d for d in os.listdir(image_base)
+                         if os.path.isdir(get_safe_path(image_base, d))]
+        except Exception as e:
+            logger.error(f"获取子文件夹列表失败: {str(e)}")
+            return None, None
+        
+        if not subfolders:
+            logger.warning("没有找到任何子文件夹")
+            return None, None
+        
+        # 收集所有文件夹中的所有图片
+        all_images = []  # 格式: [(folder, image), ...]
+        
+        for folder in subfolders:
+            # 如果缓存中没有该文件夹，初始化缓存
+            if folder not in folder_cache:
+                images = init_folder_cache(image_base, folder, image_extensions)
+                if images:
+                    folder_cache[folder] = {'images': images}
+            
+            # 从缓存中获取图片列表
+            if folder in folder_cache and folder_cache[folder]['images']:
+                for image in folder_cache[folder]['images']:
+                    all_images.append((folder, image))
+        
+        if not all_images:
+            logger.warning("没有找到任何图片")
+            return None, None
+        
+        # 真随机：随机选择一张图片
+        return random.choice(all_images)
 
 
 def invalidate_cache(folder):
