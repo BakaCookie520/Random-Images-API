@@ -66,9 +66,7 @@ def setup_logger(app, config):
     
     # 创建详细的日志格式
     verbose_formatter = RequestFormatter(
-        '[%(asctime)s] [%(levelname)s] [%(request_id)s] '
-        '%(remote_addr)s - %(method)s %(path)s - '
-        '%(name)s:%(lineno)d - %(message)s'
+        '[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)d - %(message)s'
     )
     
     # 设置控制台处理器格式
@@ -86,9 +84,7 @@ def setup_logger(app, config):
     access_console_handler = logging.StreamHandler()
     access_console_handler.setLevel(log_level)
     access_formatter = RequestFormatter(
-        '[%(asctime)s] [ACCESS] [%(request_id)s] '
-        '%(remote_addr)s - %(method)s %(path)s - '
-        '%(message)s'
+        '[%(asctime)s] [ACCESS] %(remote_addr)s - %(method)s %(path)s - %(message)s'
     )
     access_console_handler.setFormatter(access_formatter)
     access_logger.addHandler(access_console_handler)
