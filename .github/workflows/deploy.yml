@@ -2,12 +2,12 @@ name: Auto-Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - 'v*'
 
 jobs:
   build-push-and-release:
     runs-on: ubuntu-latest
-    if: contains(join(github.event.commits.*.message, ' '), 'autorelease pls')
     permissions:
       contents: write
       packages: write
@@ -25,22 +25,15 @@ jobs:
       - name: Generate Metadata
         id: metadata
         run: |
-          # 精确获取 7 位短 SHA
+          # 使用 tag 名称作为版本号
+          TAG_NAME=${GITHUB_REF#refs/tags/}
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           
-          echo "VERSION=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=auto-$TIMESTAMP-$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "VERSION=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_OUTPUT
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT  # 新增输出
-
-      - name: Create Tag
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git tag -a "${{ steps.metadata.outputs.TAG_NAME }}" -m "Auto release"
-          git push origin "${{ steps.metadata.outputs.TAG_NAME }}"
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
