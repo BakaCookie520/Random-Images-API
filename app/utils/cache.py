@@ -6,15 +6,20 @@ import random
 import time
 import logging
 from threading import Lock
+from typing import Optional, Tuple, List, Dict, Any
 from .security import get_safe_path
 
 # 配置日志
 logger = logging.getLogger(__name__)
 
 # 创建文件夹缓存字典（用于存储各文件夹的图像列表）
-folder_cache = {}
+# 结构：{folder: {'images': [...], 'timestamp': float}}
+folder_cache: Dict[str, Dict[str, Any]] = {}
 # 创建线程锁（确保多线程环境下的缓存操作安全）
 cache_lock = Lock()
+
+# 缓存过期时间（秒）
+CACHE_TTL = int(os.environ.get('CACHE_TTL', 3600))  # 默认1小时
 
 def init_folder_cache(image_base, folder, image_extensions):
     """
@@ -47,7 +52,7 @@ def init_folder_cache(image_base, folder, image_extensions):
         return None
 
 
-def get_random_image(image_base, folder, image_extensions):
+def get_random_image(image_base: str, folder: str, image_extensions: set) -> Optional[str]:
     """
     获取文件夹中的随机图像（真随机）
     
@@ -60,14 +65,25 @@ def get_random_image(image_base, folder, image_extensions):
         随机图像文件名或None
     """
     with cache_lock:  # 线程安全操作
+        current_time = time.time()
+        
+        # 检查缓存是否存在或已过期
+        if folder in folder_cache:
+            cache_entry = folder_cache[folder]
+            # 检查缓存是否过期
+            if current_time - cache_entry.get('timestamp', 0) > CACHE_TTL:
+                logger.info(f"缓存已过期，重新加载: {folder}")
+                del folder_cache[folder]
+        
         # 如果缓存中没有该文件夹，初始化缓存
         if folder not in folder_cache:
             images = init_folder_cache(image_base, folder, image_extensions)
             if not images:
                 return None  # 无有效图像
-            # 存储图像列表到缓存
+            # 存储图像列表到缓存（带时间戳）
             folder_cache[folder] = {
-                'images': images
+                'images': images,
+                'timestamp': current_time
             }
 
         cache = folder_cache[folder]
@@ -126,7 +142,7 @@ def get_random_image_from_all_folders(image_base, image_extensions):
         return random.choice(all_images)
 
 
-def invalidate_cache(folder):
+def invalidate_cache(folder: str) -> None:
     """
     使指定文件夹的缓存失效
     
@@ -137,3 +153,29 @@ def invalidate_cache(folder):
         if folder in folder_cache:
             logger.info(f"使缓存失效: {folder}")
             del folder_cache[folder]
+
+
+def cleanup_expired_cache() -> int:
+    """
+    清理过期的缓存项
+    
+    Returns:
+        清理的缓存项数量
+    """
+    current_time = time.time()
+    expired_count = 0
+    
+    with cache_lock:
+        folders_to_remove = []
+        for folder, cache_entry in folder_cache.items():
+            if current_time - cache_entry.get('timestamp', 0) > CACHE_TTL:
+                folders_to_remove.append(folder)
+        
+        for folder in folders_to_remove:
+            del folder_cache[folder]
+            expired_count += 1
+        
+        if expired_count > 0:
+            logger.info(f"已清理 {expired_count} 个过期缓存项")
+    
+    return expired_count
