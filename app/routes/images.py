@@ -3,8 +3,8 @@
 """
 import os
 import logging
-from flask import Blueprint, redirect, send_from_directory, abort, request, render_template
-from ..utils.security import get_safe_path, is_banned
+from flask import Blueprint, redirect, send_from_directory, abort, request
+from ..utils.security import get_safe_path
 from ..utils.cache import get_random_image, get_random_image_from_all_folders, invalidate_cache
 from ..config.config import Config
 
@@ -18,19 +18,8 @@ images_bp = Blueprint('images', __name__)
 def serve_random_from_all():
     """
     从所有文件夹中随机选择并返回图片
+    注意：封禁检查已在 before_request 中统一处理
     """
-    # 检查封禁状态
-    client_ip = request.remote_addr
-    current_path = request.path
-    banned, remaining, end_time = is_banned(client_ip, current_path, Config.BAN_DURATION)
-
-    if banned:
-        return render_template('too_many_requests.html',
-                               retry_after=int(remaining),
-                               end_time=int(end_time),
-                               client_ip=client_ip,
-                               target_url=current_path), 429
-
     max_attempts = 3  # 最大重试次数
     attempt = 0
 
@@ -65,21 +54,9 @@ def serve_random_from_all():
 def serve_sequential_image(folder):
     """
     随机服务图像：从指定文件夹中随机返回图像
+    注意：封禁检查已在 before_request 中统一处理
     """
-    # 首先检查封禁状态
-    client_ip = request.remote_addr
-    current_path = request.path
-    banned, remaining, end_time = is_banned(client_ip, current_path, Config.BAN_DURATION)
-
-    if banned:
-        # 如果被封禁，直接返回封禁页面
-        return render_template('too_many_requests.html',
-                               retry_after=int(remaining),
-                               end_time=int(end_time),
-                               client_ip=client_ip,
-                               target_url=current_path), 429
-
-    # 然后处理路径和文件夹逻辑
+    # 处理路径和文件夹逻辑
     folder = folder.strip('/')  # 清理文件夹路径
     if not folder:
         return redirect('/')  # 空路径重定向到主页
