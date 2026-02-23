@@ -3,7 +3,12 @@
 """
 import os
 import time
+import ipaddress
+import logging
 from flask import request
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 # 存储封禁信息（结构：{ip: {path: (end_time, is_directory)}}）
 ban_records = {}
@@ -200,14 +205,43 @@ def cleanup_bans():
             del last_ban_times[ip]
 
 
-def get_real_ip():
+def get_real_ip(trusted_proxies=None):
     """
-    获取客户端真实IP地址，支持多种代理头
+    获取客户端真实IP地址，支持多种代理头（安全版本）
+    
+    Args:
+        trusted_proxies: 可信代理IP列表（CIDR格式），如 ['192.168.1.0/24', '10.0.0.0/8']
     
     Returns:
         客户端IP地址
     """
-    # 按优先级检查各种代理头
+    # 如果没有配置可信代理，只信任直接连接的IP
+    if not trusted_proxies:
+        return request.remote_addr
+    
+    # 检查请求是否来自可信代理
+    remote_addr = request.remote_addr
+    is_trusted = False
+    
+    try:
+        client_ip = ipaddress.ip_address(remote_addr)
+        for proxy_range in trusted_proxies:
+            try:
+                if client_ip in ipaddress.ip_network(proxy_range, strict=False):
+                    is_trusted = True
+                    break
+            except (ValueError, TypeError) as e:
+                logger.warning(f"无效的可信代理配置: {proxy_range}, 错误: {e}")
+                continue
+    except (ValueError, TypeError) as e:
+        logger.warning(f"无效的客户端IP: {remote_addr}, 错误: {e}")
+        return remote_addr
+    
+    # 如果不是来自可信代理，返回直接连接的IP
+    if not is_trusted:
+        return remote_addr
+    
+    # 按优先级检查各种代理头（仅当来自可信代理时）
     headers_to_check = [
         'X-Real-IP',         # 优先检查X-Real-IP
         'X-Forwarded-For',
@@ -223,7 +257,14 @@ def get_real_ip():
             value = request.headers.get(header, '')
             if value:
                 # 如果是逗号分隔的列表（如X-Forwarded-For），取第一个值
-                return value.split(',')[0].strip()
+                ip = value.split(',')[0].strip()
+                # 验证IP格式
+                try:
+                    ipaddress.ip_address(ip)
+                    return ip
+                except ValueError:
+                    logger.warning(f"无效的IP地址在头 {header}: {ip}")
+                    continue
     
-    # 如果没有找到任何代理头，使用远程地址
-    return request.remote_addr
+    # 如果没有找到有效的代理头，使用远程地址
+    return remote_addr
