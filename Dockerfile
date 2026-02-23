@@ -6,7 +6,8 @@ WORKDIR /app
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=50721
+    PORT=50721 \
+    PYTHONUSERBASE=/app/.local
 
 # 安装依赖
 COPY requirements.txt .
@@ -18,18 +19,20 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY run.py .
 COPY app/ ./app/
 
-# 创建必要的目录
-RUN mkdir -p images logs static
+# 创建非特权用户和必要的目录
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p images logs static config && \
+    chown -R appuser:appuser /app
 
-# 设置权限
-RUN chmod -R 755 /app
+# 切换到非特权用户
+USER appuser
 
 # 暴露端口
 EXPOSE ${PORT}
 
-# 健康检查
+# 健康检查（使用 Python，因为 slim 镜像没有 curl）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/ || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/')" || exit 1
 
 # 设置容器启动命令
 CMD ["python", "-u", "run.py", "--env=production"]
