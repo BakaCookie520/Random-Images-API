@@ -6,6 +6,7 @@ import logging
 import datetime
 import uuid
 import secrets
+from threading import Lock
 from flask import Flask, request, g, has_request_context, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -18,9 +19,12 @@ from .utils.logger import setup_logger
 # 获取模块日志记录器
 logger = logging.getLogger(__name__)
 
+# 请求计数器锁（线程安全）
+request_count_lock = Lock()
+
 # 创建限流器，使用优化后的IP获取函数
 limiter = Limiter(
-    key_func=get_real_ip,  # 使用自定义函数获取真实IP
+    key_func=lambda: get_real_ip(getattr(Flask, '_trusted_proxies', [])),
     default_limits=["500 per hour"],
     storage_uri="memory://"
 )
@@ -71,8 +75,8 @@ def create_app(config_class=Config):
         access_logger = logging.getLogger('access')
         access_logger.info(f"请求开始: {request.method} {request.path}")
         
-        # 使用优化后的get_real_ip函数获取真实IP
-        client_ip = get_real_ip()
+        # 使用优化后的get_real_ip函数获取真实IP（传递可信代理列表）
+        client_ip = get_real_ip(getattr(app, '_trusted_proxies', []))
         current_path = request.path
         banned, remaining, end_time = is_banned(client_ip, current_path, config_class.BAN_DURATION)
 
@@ -91,15 +95,14 @@ def create_app(config_class=Config):
                                 client_ip=client_ip,
                                 target_url=current_path), 429
 
-        # 定期清理过期封禁（不是每次请求都清理，减少性能开销）
-        # 使用请求计数器，每100个请求清理一次
-        if hasattr(app, 'request_count'):
+        # 定期清理过期封禁（线程安全）
+        with request_count_lock:
+            if not hasattr(app, 'request_count'):
+                app.request_count = 0
             app.request_count += 1
             if app.request_count >= 100:
                 cleanup_bans()
                 app.request_count = 0
-        else:
-            app.request_count = 1
     
     # 设置响应后处理函数
     @app.after_request
@@ -125,6 +128,9 @@ def create_app(config_class=Config):
         return response
     
     # 启动文件监控
-    app.file_monitor = setup_file_monitor(config_class.IMAGE_BASE)
+    app.file_monitor = setup_file_monitor(config_class.IMAGE_BASE, config_class.IMAGE_EXTENSIONS)
+    
+    # 保存可信代理列表到应用实例
+    app._trusted_proxies = getattr(config_class, 'TRUSTED_PROXIES', [])
     
     return app
