@@ -1,94 +1,154 @@
 # Random-Images-API
 
+<div align="center">
 
-一个基于Flask的Docker容器服务，支持动态子文件夹管理和随机图片展示。当访问`/子文件夹`时，将随机重定向到该文件夹下的任意图片文件。
+[![Docker Build](https://img.shields.io/badge/Docker-Supported-blue?logo=docker)](https://www.docker.com/)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-green?logo=python)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
-## Demo
+一个轻量级的随机图片 API 服务，支持多文件夹管理和真随机访问
 
-random-image-api.bakacookie520.top/pc
+[在线演示](http://random-image-api.bakacookie520.top/pc) · [报告问题](https://github.com/BakaCookie520/Random-Images-API/issues) · [功能建议](https://github.com/BakaCookie520/Random-Images-API/issues)
 
-## 功能特性
+</div>
 
-✅ 动态子文件夹检测  
-✅ 支持常见图片格式（PNG/JPG/JPEG/GIF/WEBP）  
-✅ 实时文件更新（无需重启服务）  
-✅ 随机图片重定向  
-✅ 一个服务部署多个API
+---
 
-### 前置要求
-- Docker 20.10+
-- 至少100MB可用磁盘空间
-- （可选）使用脚本时安装Python环境
+## ✨ 功能特性
 
-## 快速开始
+- 🎲 **真随机访问** - 每次请求都随机选择图片，无固定顺序
+- 📁 **多文件夹管理** - 支持动态子文件夹，一个服务管理多个图库
+- 🌐 **全局随机** - `/random` 路径可从所有文件夹中随机选择图片
+- 🔄 **实时更新** - 文件监控自动刷新缓存，无需重启服务
+- 🛡️ **安全防护** - 路径遍历防护、IP 封禁、请求限流
+- 🐳 **容器化部署** - 支持 Docker 一键部署
 
-我们推荐您使用雨云一键部署
+## 📦 快速部署
+
+### 方式一：Docker（推荐）
+
+```bash
+# 拉取镜像
+docker pull ghcr.io/bakacookie520/random-images-api:latest
+
+# 启动服务
+docker run -d \
+  -p 50721:50721 \
+  -v $(pwd)/images:/app/images \
+  --name random-images-api \
+  ghcr.io/bakacookie520/random-images-api:latest
+```
+
+### 方式二：雨云一键部署
 
 [![通过雨云一键部署](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-cn.svg)](https://app.rainyun.com/apps/rca/store/6218?ref=543098)
-
 [![Deploy on RainYun](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-en.svg)](https://app.rainyun.com/apps/rca/store/6218?ref=543098)
 
-### 从Release下载Docker镜像或者脚本压缩包
+### 方式三：Python 脚本
 
-1.使用Docker
+```bash
+# 克隆项目
+git clone https://github.com/BakaCookie520/Random-Images-API.git
+cd Random-Images-API
 
-  (1)拉取镜像
-  
-    docker pull ghcr.nju.edu.cn/bakacookie520/random-images-api:latest 
-     
-  (2)启动
-  
-    docker run -d \
-    -p 50721:50721 \
-    -v $(pwd)/images:/app/images \
-    --name my-image-server \
-    ghcr.io/bakacookie520/random-images-api:latest
+# 安装依赖
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-  
-2.使用脚本（仅支持Python 3.11版本）    
+# 创建图片目录
+mkdir images
 
-  （1）克隆项目
+# 启动服务
+python run.py
+```
 
-    git clone https://github.com/BakaCookie520/Random-Images-API.git
-    
-    cd Random-Images-API  
+## 🚀 使用指南
 
-  （2）安装环境  
+### 1. 准备图片
 
-    pip install --no-cache-dir -r requirements.txt \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    --trusted-host pypi.tuna.tsinghua.edu.cn  
+在 `images` 目录下创建子文件夹并添加图片：
 
-  （3）启动  
+```
+images/
+├── pc/          # 电脑壁纸
+│   ├── img1.jpg
+│   └── img2.png
+├── mobile/      # 手机壁纸
+│   └── img3.jpg
+└── anime/       # 动漫图片
+    └── img4.webp
+```
 
-    python app.py
+### 2. API 接口
 
-### 使用CDN（可选）  
+| 接口路径 | 说明 | 示例 |
+|---------|------|------|
+| `/` | 主页，显示所有文件夹 | `http://localhost:50721/` |
+| `/{folder}` | 随机返回指定文件夹中的图片 | `http://localhost:50721/pc` |
+| `/random` | 从所有文件夹中随机返回图片 | `http://localhost:50721/random` |
+| `/browse/{folder}` | 浏览文件夹中的所有图片 | `http://localhost:50721/browse/pc` |
 
-推荐使用阿里云CDN
+### 3. 支持的图片格式
 
-  1.在域名管理/域名/缓存配置/节点HTTP响应头中，配置`Cache-Control: no-cache`
-  
-  ![image](https://github.com/user-attachments/assets/134b163d-f5e9-4bfc-9776-180e44686667)
+PNG、JPG、JPEG、GIF、WEBP
 
+## ⚙️ 配置说明
 
-  2.在域名管理/域名/回源配置/回源HTTP请求头中，配置自定义回源请求头`CDN: CDNRequest`
+### 环境变量
 
-  ![image](https://github.com/user-attachments/assets/7bd0cccd-6010-414a-aa68-ad406fea437e)
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `PORT` | 50721 | 服务端口 |
+| `FLASK_ENV` | development | 运行环境（development/production） |
+| `SECRET_KEY` | 随机生成 | Flask 密钥 |
 
-  3.在域名管理/域名/视频相关中，配置`Range回源：跟随客户端Range请求`  
+### CDN 配置（可选）
 
-  ![image](https://github.com/user-attachments/assets/7ba38634-964a-4b4d-9ecb-31d8fa89ee3f)
+如需使用 CDN 加速，请配置以下设置：
 
+1. **节点响应头**：`Cache-Control: no-cache`
+2. **回源请求头**：`CDN: CDNRequest`
+3. **Range 回源**：跟随客户端 Range 请求
 
-### 如何使用？  
+## 📸 效果展示
 
-部署项目后，无论您使用的是脚本还是容器，请找到映射出的（或目录内的）images文件夹，在里边再次添加子目录（比如pc），访问IP:50721/pc即可在pc这个文件夹内进行随机图片  
+<div align="center">
 
-![Demo](https://vip.123pan.cn/1815812033/yk6baz03t0n000d7w33gztylj6ousn5aDIYPAIYPDqawDvxPAdQOAY==.png)
-![Demo](https://vip.123pan.cn/1815812033/yk6baz03t0m000d7w33g8h9k66nw0ly9DIYPAIYPDqawDvxPAdQOAY==.png)
-<img width="2028" height="1139" alt="image" src="https://github.com/user-attachments/assets/9fefa530-adb7-4491-b66a-50f937537a6d" />
-<img width="2559" height="1408" alt="image" src="https://github.com/user-attachments/assets/f210625b-5a97-4638-b5b1-b6fa766ab01c" />
+![主页展示](https://github.com/user-attachments/assets/9fefa530-adb7-4491-b66a-50f937537a6d)
+
+![浏览模式](https://github.com/user-attachments/assets/f210625b-5a97-4638-b5b1-b6fa766ab01c)
+
+</div>
+
+## 🛠️ 技术栈
+
+- **后端框架**：Flask 2.3.3
+- **WSGI 服务器**：gevent 23.9.1
+- **图片处理**：Pillow 11.3.0
+- **限流保护**：flask-limiter 3.5.0
+- **文件监控**：watchdog 6.0.0
+
+## 📝 更新日志
+
+### v2.0.0
+- ✨ 新增 `/random` 接口，支持从所有文件夹随机选择图片
+- 🎲 将随机逻辑改为真随机，每次访问都随机选择
+- 🎨 优化代码结构，提升性能
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 许可证
+
+本项目基于 [MIT](LICENSE.txt) 许可证开源。
+
+---
+
+<div align="center">
+
+如果这个项目对你有帮助，请给个 ⭐️ 支持一下！
+
+</div>
 
 
   
