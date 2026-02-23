@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 环境变量
+.env
+.env.local
+
+# 日志和缓存
+logs/
+*.log
+
+# 图片和上传文件
+images/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+
+# 配置文件
+config/
+admin_config.json
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# 文档
+README.md
+LICENSE.txt
