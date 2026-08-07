@@ -133,6 +133,12 @@ celerybeat.pid
 env/
 venv/
 ENV/
+/.env.local
+
+# Local runtime state and personal configuration
+/config/
+/images/
+/logs/
 env.bak/
 venv.bak/
 
