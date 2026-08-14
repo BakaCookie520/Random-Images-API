@@ -1,3 +1,5 @@
+
+
 # Random-Images-API
 
 <div align="center">
@@ -35,6 +37,7 @@ docker pull ghcr.io/bakacookie520/random-images-api:latest
 docker run -d \
   -p 50721:50721 \
   -v $(pwd)/images:/app/images \
+  -v $(pwd)/config:/app/config \
   --name random-images-api \
   ghcr.io/bakacookie520/random-images-api:latest
 ```
@@ -149,8 +152,3 @@ PNG、JPG、JPEG、GIF、WEBP
 如果这个项目对你有帮助，请给个 ⭐️ 支持一下！
 
 </div>
-
-
-  
-
-
